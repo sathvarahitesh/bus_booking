@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}E-Ticket {{ booking.pnr }}{% endblock %}
+
+{% block extra_css %}<link href="{% static 'css/ticket.css' %}" rel="stylesheet">{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
+    <a class="small text-decoration-none" href="{% url 'bookings:detail' booking.pnr %}">
+      <i class="bi bi-arrow-left"></i> Booking details
+    </a>
+    <button class="btn btn-primary" type="button" onclick="window.print()">
+      <i class="bi bi-printer me-1"></i>Print / Save as PDF
+    </button>
+  </div>
+
+  <div class="ticket">
+    <div class="ticket-head">
+      <div>
+        <div class="ticket-brand"><i class="bi bi-bus-front-fill me-1"></i>{{ SITE_NAME }}</div>
+        <div class="small">Online Bus Reservation and Ticket Booking System</div>
+      </div>
+      <div class="text-end">
+        <div class="small">E-TICKET</div>
+        <div class="ticket-pnr">{{ booking.pnr }}</div>
+      </div>
+    </div>
+
+    <div class="ticket-body">
+      <div class="ticket-route">
+        <div>
+          <div class="ticket-city">{{ schedule.route.source }}</div>
+          <div>{{ schedule.departure_time|time:"h:i A" }}</div>
+          <div class="small">{{ schedule.travel_date|date:"D, d M Y" }}</div>
+        </div>
+        <div class="text-center flex-grow-1">
+          <i class="bi bi-arrow-right fs-3"></i>
+          <div class="small">{{ schedule.route.duration_display }} &middot; {{ schedule.route.distance_km }} km</div>
+        </div>
+        <div class="text-end">
+          <div class="ticket-city">{{ schedule.route.destination }}</div>
+          <div>{{ schedule.arrival_time|time:"h:i A" }}</div>
+          <div class="small">{{ schedule.arrival_datetime|date:"D, d M Y" }}</div>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-6 col-md-3"><div class="ticket-label">Bus Operator</div>{{ schedule.bus.operator.name }}</div>
+        <div class="col-6 col-md-3"><div class="ticket-label">Bus Number</div>{{ schedule.bus.bus_number }}</div>
+        <div class="col-6 col-md-3"><div class="ticket-label">Bus Type</div>
+          {{ schedule.bus.get_bus_type_display }} {% if schedule.bus.is_ac %}A/C{% else %}Non A/C{% endif %} {{ schedule.bus.get_seat_type_display }}</div>
+        <div class="col-6 col-md-3"><div class="ticket-label">Travel Date</div>{{ schedule.travel_date|date:"d M Y" }}</div>
+        <div class="col-6 col-md-3"><div class="ticket-label">Departure Time</div>{{ schedule.departure_time|time:"h:i A" }}</div>
+        <div class="col-6 col-md-3"><div class="ticket-label">Arrival Time</div>{{ schedule.arrival_time|time:"h:i A" }}</div>
+        <div class="col-12 col-md-6"><div class="ticket-label">Boarding Point</div>
+          {{ booking.boarding_point.name }}, {{ boarding_time|time:"h:i A" }}
+          <div class="small text-muted">{{ booking.boarding_point.address }}</div></div>
+        <div class="col-12 col-md-6"><div class="ticket-label">Dropping Point</div>
+          {{ booking.dropping_point.name }}, {{ dropping_time|time:"h:i A, d M" }}
+          <div class="small text-muted">{{ booking.dropping_point.address }}</div></div>
+      </div>
+
+      <table class="table table-sm mt-4 mb-0">
+        <thead>
+          <tr><th>#</th><th>Passenger Name</th><th>Age</th><th>Gender</th><th class="text-end">Seat No.</th></tr>
+        </thead>
+        <tbody>
+          {% for p in passengers %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.age }}</td>
+            <td>{{ p.get_gender_display }}</td>
+            <td class="text-end fw-bold">{{ p.seat.seat_number }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="row g-3 mt-3 ticket-total">
+        <div class="col-6 col-md-3"><div class="ticket-label">Fare per seat</div>&#8377;{{ schedule.fare|floatformat:0 }}</div>
+        <div class="col-6 col-md-3"><div class="ticket-label">Total Fare</div><strong>&#8377;{{ booking.total_amount|floatformat:0 }}</strong></div>
+        <div class="col-6 col-md-3"><div class="ticket-label">Payment Status</div>{{ booking.get_payment_status_display }}</div>
+        <div class="col-6 col-md-3"><div class="ticket-label">Booking Status</div>{{ booking.get_booking_status_display }}</div>
+      </div>
+      {% if booking.payment_status == 'PENDING' %}
+        <div class="small mt-2"><strong>Note:</strong> Please pay the fare at the counter before boarding.</div>
+      {% endif %}
+    </div>
+
+    <div class="ticket-foot">
+      <div>Booked on {{ booking.created_at|date:"d M Y, h:i A" }} &middot; Contact: {{ booking.contact_phone }}</div>
+      <div>Carry a valid photo ID and reach the boarding point 15 minutes early. Demo academic project &mdash; not a real ticket.</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cancel Booking{% endblock %}
+
+{% block extra_css %}<link href="{% static 'css/booking.css' %}" rel="stylesheet">{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <a class="small text-decoration-none" href="{% url 'bookings:detail' booking.pnr %}">
+    <i class="bi bi-arrow-left"></i> Back to booking
+  </a>
+  <h3 class="section-title mt-2">Cancel Booking</h3>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="info-card">
+        <div class="text-muted small">PNR</div>
+        <div class="fs-4 fw-bold">{{ booking.pnr }}</div>
+        <div class="mt-2 fw-semibold">{{ schedule.route.source }} <i class="bi bi-arrow-right"></i> {{ schedule.route.destination }}</div>
+        <div class="small text-muted">
+          {{ schedule.bus.operator.name }} &middot; {{ schedule.travel_date|date:"d M Y" }}
+          &middot; {{ schedule.departure_time|time:"h:i A" }}
+        </div>
+        <div class="small mt-2">
+          Passengers:
+          {% for p in passengers %}{{ p.name }} ({{ p.seat.seat_number }}){% if not forloop.last %}, {% endif %}{% endfor %}
+        </div>
+      </div>
+
+      <div class="info-card mt-3">
+        <h6>Cancellation policy</h6>
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Time before departure</th><th class="text-end">Refund</th></tr></thead>
+          <tbody>
+            <tr><td>More than 24 hours</td><td class="text-end">90%</td></tr>
+            <tr><td>12 to 24 hours</td><td class="text-end">50%</td></tr>
+            <tr><td>2 to 12 hours</td><td class="text-end">25%</td></tr>
+            <tr><td>Less than 2 hours</td><td class="text-end">Not allowed</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="summary-card">
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Amount paid</span>
+          <span>&#8377;{% if booking.payment_status == 'PAID' %}{{ booking.total_amount|floatformat:0 }}{% else %}0{% endif %}</span>
+        </div>
+        <div class="d-flex justify-content-between mt-1">
+          <span class="text-muted">Refund ({{ policy.percent }}%)</span>
+          <span class="fs-4 fw-bold text-success">&#8377;{{ policy.refund|floatformat:2 }}</span>
+        </div>
+        {% if booking.payment_status != 'PAID' %}
+          <div class="small text-muted mt-2">Payment was not made online, so there is nothing to refund.</div>
+        {% endif %}
+        <hr>
+        <form method="post">
+          {% csrf_token %}
+          <label for="reason" class="form-label">Reason (optional)</label>
+          <textarea class="form-control" id="reason" name="reason" rows="2" maxlength="200"></textarea>
+          <button type="submit" class="btn btn-danger w-100 mt-3"
+                  onclick="return confirm('Cancel this booking? This cannot be undone.');">
+            <i class="bi bi-x-circle me-1"></i>Confirm Cancellation
+          </button>
+        </form>
+        <a class="btn btn-outline-secondary w-100 mt-2" href="{% url 'bookings:detail' booking.pnr %}">Keep my booking</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Booking {{ booking.pnr }}{% endblock %}
+
+{% block content %}
+<a class="small text-decoration-none" href="{% url 'dashboard:list' 'bookings' %}">
+  <i class="bi bi-arrow-left"></i> Back to Bookings
+</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 mb-3">
+  <h4 class="mb-0">Booking {{ booking.pnr }}</h4>
+  <a class="btn btn-primary btn-sm" href="{% url 'dashboard:edit' 'bookings' booking.pk %}"><i class="bi bi-pencil me-1"></i>Edit status</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="fw-semibold">{{ schedule.route }}</div>
+            <div class="small text-muted">{{ schedule.bus.operator.name }} &middot; {{ schedule.bus.bus_number }}</div>
+            <div class="small">{{ schedule.travel_date|date:"d M Y" }}, {{ schedule.departure_time|time:"h:i A" }} &ndash; {{ schedule.arrival_time|time:"h:i A" }}</div>
+          </div>
+          <div class="text-end">
+            <span class="badge text-bg-secondary">{{ booking.get_booking_status_display }}</span>
+            <span class="badge text-bg-secondary">{{ booking.get_payment_status_display }}</span>
+          </div>
+        </div>
+        <hr>
+        <div class="small"><strong>Boarding:</strong> {{ booking.boarding_point.name }}</div>
+        <div class="small"><strong>Dropping:</strong> {{ booking.dropping_point.name }}</div>
+        <div class="small"><strong>Booked on:</strong> {{ booking.created_at|date:"d M Y, h:i A" }}</div>
+        <div class="small"><strong>Account:</strong> {% if booking.user %}{{ booking.user.username }}{% else %}Guest{% endif %}</div>
+        <div class="small"><strong>Contact:</strong> {{ booking.contact_phone }} {{ booking.contact_email }}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header bg-white fw-semibold">Passengers</div>
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Name</th><th>Age</th><th>Gender</th><th>Seat</th><th>Active</th></tr></thead>
+        <tbody>
+          {% for p in passengers %}
+          <tr>
+            <td>{{ p.name }}</td><td>{{ p.age }}</td><td>{{ p.get_gender_display }}</td>
+            <td>{{ p.seat.seat_number }}</td>
+            <td>{% if p.is_cancelled %}<span class="badge text-bg-secondary">Cancelled</span>{% else %}<span class="badge text-bg-success">Yes</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between"><span class="text-muted">Total amount</span><span class="fs-4 fw-bold">&#8377;{{ booking.total_amount|floatformat:0 }}</span></div>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header bg-white fw-semibold">Payments</div>
+      <ul class="list-group list-group-flush small">
+        {% for pay in payments %}
+        <li class="list-group-item d-flex justify-content-between">
+          <span>{{ pay.transaction_id }}<br><span class="text-muted">{{ pay.get_method_display }}</span></span>
+          <span class="text-end">&#8377;{{ pay.amount|floatformat:0 }}<br>{{ pay.get_status_display }}</span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted">No payment attempts.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% if booking.cancellation %}
+    <div class="alert alert-secondary small">
+      <strong>Cancelled</strong> on {{ booking.cancellation.cancelled_at|date:"d M Y, h:i A" }}<br>
+      Refund: &#8377;{{ booking.cancellation.refund_amount|floatformat:2 }}<br>
+      Reason: {{ booking.cancellation.reason|default:"&mdash;" }}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

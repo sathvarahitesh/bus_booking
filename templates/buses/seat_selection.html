@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Select Seats{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/seats.css' %}" rel="stylesheet">
+<link href="{% static 'css/booking.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <a class="small text-decoration-none"
+     href="{% url 'buses:search' %}?source={{ schedule.route.source|urlencode }}&destination={{ schedule.route.destination|urlencode }}&date={{ schedule.travel_date|date:'Y-m-d' }}">
+    <i class="bi bi-arrow-left"></i> Back to buses
+  </a>
+
+  <form method="post" id="seatForm" class="mt-2"
+        data-max="{{ max_seats }}"
+        data-price="{{ schedule.fare|floatformat:'0u' }}"
+        data-status-url="{% url 'buses:seat_status' schedule.pk %}">
+    {% csrf_token %}
+    <div class="row g-4">
+
+      <div class="col-lg-8">
+        <div class="d-flex flex-wrap gap-3 mb-3 small">
+          <span><span class="legend-box available"></span>Available</span>
+          <span><span class="legend-box selected"></span>Selected</span>
+          <span><span class="legend-box booked-male"></span>Booked (Male)</span>
+          <span><span class="legend-box booked-female"></span>Booked (Female)</span>
+        </div>
+        <div id="seatNotice" class="alert alert-warning py-2 d-none"></div>
+
+        <div class="row g-3 seat-map">
+          {% for deck in decks %}
+          <div class="{% if decks|length > 1 %}col-md-6{% else %}col-md-8 mx-auto{% endif %}">
+            <div class="deck-card">
+                <div class="deck-head">
+                <span>{% if decks|length > 1 %}{{ deck.name }}{% else %}Seat Layout{% endif %}</span>
+                <span class="driver-chip"><i class="bi bi-person-badge me-1"></i>Driver</span>
+              </div>
+              {% for row in deck.rows %}
+              <div class="seat-row seat-row-{{ bus.seat_type }}">
+                {% for seat in row %}
+                  {% if forloop.counter == 3 %}<div class="aisle"></div>{% endif %}
+                  <div>
+                    {% if seat %}
+                        <button type="button" class="seat{% if seat.is_booked %} booked booked-{{ seat.booked_gender }}{% endif %}"
+                            data-id="{{ seat.pk }}" data-number="{{ seat.seat_number }}"
+                            title="Seat {{ seat.seat_number }}"
+                            {% if seat.is_booked %}disabled{% endif %}>{{ seat.seat_number }}</button>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="summary-card">
+          <h5 class="mb-1">{{ bus.operator.name }}</h5>
+          <div class="small text-muted">
+            {{ bus.get_bus_type_display }} &middot; {% if bus.is_ac %}A/C{% else %}Non A/C{% endif %}
+            &middot; {{ bus.get_seat_type_display }}
+          </div>
+          <div class="mt-2 fw-semibold">{{ schedule.route.source }} <i class="bi bi-arrow-right"></i> {{ schedule.route.destination }}</div>
+          <div class="small text-muted">
+            {{ schedule.travel_date|date:"d M Y" }} &middot;
+            {{ schedule.departure_time|time:"h:i A" }} &ndash; {{ schedule.arrival_time|time:"h:i A" }}
+            &middot; {{ available_count }} seats left
+          </div>
+          <hr>
+
+          <h6><i class="bi bi-geo-alt text-primary me-1"></i>Boarding Point</h6>
+          {% for point, when in schedule.boarding_times %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="boarding_point" value="{{ point.pk }}"
+                   id="bp-{{ point.pk }}" {% if forloop.first %}checked{% endif %}>
+            <label class="form-check-label small" for="bp-{{ point.pk }}">
+              <strong>{{ when|time:"h:i A" }}</strong> &middot; {{ point.name }}
+            </label>
+          </div>
+          {% endfor %}
+
+          <h6 class="mt-3"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Dropping Point</h6>
+          {% for point, when in schedule.dropping_times %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="dropping_point" value="{{ point.pk }}"
+                   id="dp-{{ point.pk }}" {% if forloop.last %}checked{% endif %}>
+            <label class="form-check-label small" for="dp-{{ point.pk }}">
+              <strong>{{ when|time:"h:i A" }}, {{ when|date:"d M" }}</strong> &middot; {{ point.name }}
+            </label>
+          </div>
+          {% endfor %}
+          <hr>
+
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">Seats</span>
+            <span class="fw-semibold" id="seatList">None</span>
+          </div>
+          <div class="d-flex justify-content-between mt-1">
+            <span class="text-muted">Total fare</span>
+            <span class="fs-5 fw-bold">&#8377;<span id="totalAmount">0</span></span>
+          </div>
+          <input type="hidden" name="seats" id="seatsInput">
+          <button type="submit" id="continueBtn" class="btn btn-primary w-100 mt-3" disabled>
+            Continue <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+          <div class="small text-muted mt-2">
+            Select up to {{ max_seats }} seats. No login needed to book.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/seats.js' %}"></script>
+{% endblock %}

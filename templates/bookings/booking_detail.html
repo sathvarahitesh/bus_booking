@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Booking {{ booking.pnr }}{% endblock %}
+
+{% block extra_css %}<link href="{% static 'css/booking.css' %}" rel="stylesheet">{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  {% if booking.booking_status == 'CONFIRMED' %}
+    <div class="alert alert-success d-flex align-items-center">
+      <i class="bi bi-check-circle-fill fs-2 me-3"></i>
+      <div>
+        <h4 class="mb-0">Booking Confirmed</h4>
+        <div>Your seats are booked. Please keep your PNR safe.</div>
+      </div>
+    </div>
+  {% elif booking.booking_status == 'PENDING' %}
+    <div class="alert alert-warning d-flex align-items-center">
+      <i class="bi bi-hourglass-split fs-2 me-3"></i>
+      <div>
+        <h4 class="mb-0">Booking Summary</h4>
+        <div>Your seats are held until <strong>{{ expires_at|time:"h:i A" }}</strong>. Complete the payment to confirm.</div>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-danger d-flex align-items-center">
+      <i class="bi bi-x-circle-fill fs-2 me-3"></i>
+      <div>
+        <h4 class="mb-0">Booking {{ booking.get_booking_status_display }}</h4>
+        <div>This booking is no longer active. Unpaid bookings expire automatically.</div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="info-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+          <div>
+            <div class="text-muted small">PNR</div>
+            <div class="fs-3 fw-bold">{{ booking.pnr }}</div>
+          </div>
+          <div class="text-end">
+            <span class="badge text-bg-{% if booking.booking_status == 'CONFIRMED' %}success{% elif booking.booking_status == 'PENDING' %}warning{% else %}danger{% endif %}">
+              {{ booking.get_booking_status_display }}
+            </span>
+            <span class="badge text-bg-{% if booking.payment_status == 'PAID' %}success{% elif booking.payment_status == 'PENDING' %}warning{% else %}secondary{% endif %}">
+              Payment: {{ booking.get_payment_status_display }}
+            </span>
+            <div class="small text-muted mt-1">Booked on {{ booking.created_at|date:"d M Y, h:i A" }}</div>
+          </div>
+        </div>
+        <hr>
+
+        <h5>{{ schedule.bus.operator.name }}</h5>
+        <div class="small text-muted mb-3">
+          {{ schedule.bus.get_bus_type_display }} &middot; {% if schedule.bus.is_ac %}A/C{% else %}Non A/C{% endif %}
+          &middot; {{ schedule.bus.get_seat_type_display }} &middot; Bus No: {{ schedule.bus.bus_number }}
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="text-muted small">From</div>
+            <div class="fw-semibold">{{ schedule.route.source }}</div>
+            <div class="small">{{ schedule.departure_time|time:"h:i A" }}, {{ schedule.travel_date|date:"d M Y" }}</div>
+            <div class="small text-muted mt-1"><i class="bi bi-geo-alt text-primary me-1"></i>
+              {{ booking.boarding_point.name }} at {{ boarding_time|time:"h:i A" }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">To</div>
+            <div class="fw-semibold">{{ schedule.route.destination }}</div>
+            <div class="small">{{ schedule.arrival_time|time:"h:i A" }}, {{ schedule.arrival_datetime|date:"d M Y" }}</div>
+            <div class="small text-muted mt-1"><i class="bi bi-geo-alt-fill text-danger me-1"></i>
+              {{ booking.dropping_point.name }} at {{ dropping_time|time:"h:i A" }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-card mt-3">
+        <h5>Passengers</h5>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>#</th><th>Name</th><th>Age</th><th>Gender</th><th>Seat</th></tr></thead>
+            <tbody>
+              {% for p in passengers %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ p.name }}</td>
+                <td>{{ p.age }}</td>
+                <td>{{ p.get_gender_display }}</td>
+                <td><span class="badge text-bg-success">{{ p.seat.seat_number }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+     <div class="col-lg-4">
+      <div class="summary-card">
+        <h5>Fare Details</h5>
+        <div class="d-flex justify-content-between mt-2">
+          <span class="fw-semibold">Total amount</span>
+          <span class="fs-4 fw-bold">&#8377;{{ booking.total_amount|floatformat:0 }}</span>
+        </div>
+        <hr>
+        <div class="small text-muted">Contact</div>
+        <div class="small"><i class="bi bi-telephone me-1"></i>{{ booking.contact_phone }}</div>
+        {% if booking.contact_email %}<div class="small"><i class="bi bi-envelope me-1"></i>{{ booking.contact_email }}</div>{% endif %}
+
+        {% if booking.booking_status == 'PENDING' %}
+          <a class="btn btn-success w-100 mt-3" href="{% url 'payments:pay' booking.pnr %}">
+            <i class="bi bi-credit-card me-1"></i>Proceed to Payment
+          </a>
+        {% elif booking.booking_status == 'CONFIRMED' %}
+          <a class="btn btn-primary w-100 mt-3" href="{% url 'bookings:ticket' booking.pnr %}">
+            <i class="bi bi-ticket-perforated me-1"></i>View E-Ticket
+          </a>
+          {% if policy.allowed %}
+          <a class="btn btn-outline-danger w-100 mt-2" href="{% url 'bookings:cancel' booking.pnr %}">
+            <i class="bi bi-x-circle me-1"></i>Cancel Booking
+          </a>
+          {% else %}
+          <div class="small text-muted mt-2">Cancellation is closed (less than 2 hours to departure).</div>
+          {% endif %}
+        {% endif %}
+
+        {% if booking.cancellation %}
+        <div class="alert alert-secondary small mt-3 mb-0">
+          Cancelled on {{ booking.cancellation.cancelled_at|date:"d M Y, h:i A" }}.<br>
+          Refund: <strong>&#8377;{{ booking.cancellation.refund_amount|floatformat:2 }}</strong> (demo, to original payment method)
+        </div>
+        {% endif %}
+
+        <a class="btn btn-outline-secondary w-100 mt-2" href="{% url 'core:home' %}">Back to Home</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

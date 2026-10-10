@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Routes{% endblock %}
+
+{% block content %}
+<div class="container auth-wrap">
+  <h3 class="section-title">All Routes</h3>
+  <div class="row g-3">
+    {% for route in routes %}
+    <div class="col-lg-4 col-md-6">
+      <div class="feature-card h-100">
+        <h5 class="mb-2">{{ route.source }} <i class="bi bi-arrow-right text-primary"></i> {{ route.destination }}</h5>
+        <p class="text-muted small mb-3">
+          <i class="bi bi-signpost-split me-1"></i>{{ route.distance_km }} km
+          &nbsp;&middot;&nbsp;
+          <i class="bi bi-clock me-1"></i>{{ route.duration_display }}
+        </p>
+        <a class="btn btn-outline-primary btn-sm"
+           href="{% url 'buses:search' %}?source={{ route.source|urlencode }}&destination={{ route.destination|urlencode }}&date={{ today|date:'Y-m-d' }}">
+          View Buses
+        </a>
+      </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No routes available yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

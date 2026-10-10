@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="container">
+    <div class="text-center text-white mb-4">
+      <h1 class="display-5 fw-bold">Your Journey Starts Here</h1>
+      <p class="lead mb-0">Search buses, pick your seat and book in minutes.</p>
+    </div>
+
+    <form class="search-card" method="get" action="/buses/search/" id="searchForm">
+      <div class="row g-3 align-items-end">
+        <div class="col-lg-3 col-md-6">
+          <label for="source" class="form-label">From</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+            <input type="text" class="form-control" id="source" name="source" list="cityList"
+                   placeholder="Source city" required autocomplete="off">
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <label for="destination" class="form-label">To</label>
+          <div class="input-group">
+            <button type="button" class="input-group-text btn-swap" id="swapBtn" title="Swap">
+              <i class="bi bi-arrow-left-right"></i>
+            </button>
+            <input type="text" class="form-control" id="destination" name="destination" list="cityList"
+                   placeholder="Destination city" required autocomplete="off">
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <label for="date" class="form-label">Travel Date</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+            <input type="date" class="form-control" id="date" name="date" required>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <button type="submit" class="btn btn-primary w-100 btn-lg">
+            <i class="bi bi-search me-1"></i>Search Buses
+          </button>
+        </div>
+      </div>
+      <datalist id="cityList">
+        {% for city in cities %}<option value="{{ city }}">{% endfor %}
+      </datalist>
+    </form>
+  </div>
+</section>
+
+<section class="container section-gap">
+  <h3 class="section-title">Popular Routes</h3>
+  <div class="row g-3">
+    {% for source, destination in popular_routes %}
+    <div class="col-lg-3 col-md-4 col-sm-6">
+      <a class="route-card" href="/buses/search/?source={{ source|urlencode }}&destination={{ destination|urlencode }}">
+        <span class="fw-semibold">{{ source }}</span>
+        <i class="bi bi-arrow-right mx-2 text-primary"></i>
+        <span class="fw-semibold">{{ destination }}</span>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="container section-gap">
+  <h3 class="section-title">Why Book With {{ SITE_NAME }}</h3>
+  <div class="row g-4">
+    {% for icon, title, text in features %}
+    <div class="col-lg-4 col-md-6">
+      <div class="feature-card h-100">
+        <div class="feature-icon"><i class="bi {{ icon }}"></i></div>
+        <h5>{{ title }}</h5>
+        <p class="text-muted mb-0">{{ text }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

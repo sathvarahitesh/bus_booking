@@ -1,0 +1,93 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-graph-up-arrow me-2"></i>Reports</h4>
+
+<form method="get" class="row g-2 align-items-end mb-4">
+  <div class="col-auto">
+    <label class="form-label small mb-0">From</label>
+    <input type="date" name="start" value="{{ start|date:'Y-m-d' }}" class="form-control form-control-sm">
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-0">To</label>
+    <input type="date" name="end" value="{{ end|date:'Y-m-d' }}" class="form-control form-control-sm">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-sm btn-primary" type="submit">Generate</button>
+    <a class="btn btn-sm btn-outline-success" href="{% url 'dashboard:export' %}?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">
+      <i class="bi bi-download me-1"></i>Export bookings (CSV)
+    </a>
+  </div>
+</form>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6"><div class="stat-card"><div><div class="stat-value">&#8377;{{ figures.gross|floatformat:0 }}</div><div class="small text-muted">Gross collected</div></div></div></div>
+  <div class="col-md-3 col-6"><div class="stat-card"><div><div class="stat-value">&#8377;{{ figures.refunds|floatformat:0 }}</div><div class="small text-muted">Refunds</div></div></div></div>
+  <div class="col-md-3 col-6"><div class="stat-card"><div><div class="stat-value text-success">&#8377;{{ figures.net|floatformat:0 }}</div><div class="small text-muted">Net revenue</div></div></div></div>
+  <div class="col-md-3 col-6"><div class="stat-card"><div><div class="stat-value">{{ confirmed_count }} / {{ cancelled_count }}</div><div class="small text-muted">Confirmed / Cancelled</div></div></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold">Revenue by day</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Date</th><th>Payments</th><th class="text-end">Amount</th></tr></thead>
+          <tbody>
+            {% for r in by_day %}<tr><td>{{ r.day|date:"d M Y" }}</td><td>{{ r.n }}</td><td class="text-end">&#8377;{{ r.total|floatformat:0 }}</td></tr>
+            {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">No data for this period.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold">Top routes</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Route</th><th>Bookings</th><th class="text-end">Amount</th></tr></thead>
+          <tbody>
+            {% for r in by_route %}<tr><td>{{ r.schedule__route__source }} &rarr; {{ r.schedule__route__destination }}</td><td>{{ r.n }}</td><td class="text-end">&#8377;{{ r.total|floatformat:0 }}</td></tr>
+            {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">No data for this period.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold">By operator</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Operator</th><th>Bookings</th><th class="text-end">Amount</th></tr></thead>
+          <tbody>
+            {% for r in by_operator %}<tr><td>{{ r.schedule__bus__operator__name }}</td><td>{{ r.n }}</td><td class="text-end">&#8377;{{ r.total|floatformat:0 }}</td></tr>
+            {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">No data for this period.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold">By payment method</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Method</th><th>Payments</th><th class="text-end">Amount</th></tr></thead>
+          <tbody>
+            {% for r in by_method %}<tr><td>{{ r.label }}</td><td>{{ r.n }}</td><td class="text-end">&#8377;{{ r.total|floatformat:0 }}</td></tr>
+            {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">No data for this period.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

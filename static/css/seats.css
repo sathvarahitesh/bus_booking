@@ -1,0 +1,69 @@
+.deck-card {
+  background: #fff;
+  border: 2px solid #cfd8e6;
+  border-radius: 1.4rem 1.4rem .8rem .8rem;
+  padding: 1rem 1.25rem 1.25rem;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.deck-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px dashed #dbe3ef;
+  padding-bottom: .75rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.driver-chip {
+  font-size: .75rem;
+  font-weight: 600;
+  color: #6c7a8f;
+  background: #eef3fb;
+  border-radius: 2rem;
+  padding: .2rem .65rem;
+}
+
+.seat-row { display: grid; gap: .5rem; justify-content: center; margin-bottom: .5rem; }
+.seat-row-seater { grid-template-columns: repeat(2, 46px) 30px repeat(2, 46px); }
+.seat-row-sleeper { grid-template-columns: repeat(2, 56px) 30px 56px; }
+
+.seat {
+  width: 100%;
+  height: 42px;
+  padding: 0;
+  border: 2px solid #6c9bd1;
+  border-radius: .4rem .4rem .8rem .8rem;
+  background: #fff;
+  color: #2d4b73;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s;
+}
+.seat-row-sleeper .seat { height: 72px; border-radius: .5rem; }
+.seat:hover:not(:disabled) { background: #e8f1ff; }
+
+.seat:disabled { opacity: 1; }
+.seat.selected { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+.seat.booked { background: #d9dde3; border-color: #c3c9d2; color: #8a929c; cursor: not-allowed; }
+.seat.booked-M { background: #198754; border-color: #146c43; color: #fff; }
+.seat.booked-F { background: #ec5fa5; border-color: #d63384; color: #fff; }
+
+.legend-box.available { border-color: #6c9bd1; background: #fff; }
+.legend-box.selected { border-color: #0d6efd; background: #0d6efd; }
+.legend-box.booked-male { border-color: #146c43; background: #198754; }
+.legend-box.booked-female { border-color: #d63384; background: #ec5fa5; }
+
+/* 
+.legend-box {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid;
+  vertical-align: middle;
+  margin-right: .35rem;
+} */

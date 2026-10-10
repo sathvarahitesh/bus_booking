@@ -1,0 +1,68 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<a class="small text-decoration-none" href="{% url 'dashboard:list' entity %}">
+  <i class="bi bi-arrow-left"></i> Back to {{ back_title }}
+</a>
+<h4 class="mt-2 mb-3">{{ title }}</h4>
+
+{% if bulk_form %}
+<ul class="nav nav-tabs mb-3" style="max-width: 760px">
+  <li class="nav-item">
+    <button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#tab-bulk">
+      <i class="bi bi-calendar-plus me-1"></i>Bulk (many days)
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#tab-single">Single trip</button>
+  </li>
+</ul>
+{% endif %}
+
+<div class="tab-content" style="max-width: 760px">
+
+  {% if bulk_form %}
+  <div class="tab-pane fade show active" id="tab-bulk">
+    <div class="card mb-3">
+      <div class="card-body">{% include 'dashboard/_bulk_form.html' with form=bulk_form %}</div>
+    </div>
+    <div class="card">
+      <div class="card-header bg-white fw-semibold">Or extend all existing trips</div>
+      <div class="card-body">
+        <p class="small text-muted">Repeats every regular trip for the next days. Run this once a month.</p>
+        {% include 'dashboard/_extend_form.html' %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="tab-pane fade{% if not bulk_form %} show active{% endif %}" id="tab-single">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+          {% endif %}
+          {% for field in form %}
+            {% if field.widget_type == 'checkbox' %}
+              <div class="form-check mb-3">
+                {{ field }}
+                <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+            {% else %}
+              {% include 'accounts/_field.html' %}
+            {% endif %}
+          {% endfor %}
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save</button>
+          <a class="btn btn-outline-secondary" href="{% url 'dashboard:list' entity %}">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

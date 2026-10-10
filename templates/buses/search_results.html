@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ source|title }} to {{ destination|title }}{% endblock %}
+
+{% block content %}
+<section class="results-head">
+  <div class="container">
+    <form class="row g-2 align-items-end" method="get" action="{% url 'buses:search' %}">
+      <div class="col-lg-3 col-md-4">
+        <input type="text" class="form-control" name="source" value="{{ source }}" list="cityList" placeholder="From" required>
+      </div>
+      <div class="col-lg-3 col-md-4">
+        <input type="text" class="form-control" name="destination" value="{{ destination }}" list="cityList" placeholder="To" required>
+      </div>
+      <div class="col-lg-3 col-md-4">
+        <input type="date" class="form-control" name="date" value="{{ travel_date|date:'Y-m-d' }}" required>
+      </div>
+      <div class="col-lg-3">
+        <button type="submit" class="btn btn-warning w-100"><i class="bi bi-search me-1"></i>Modify Search</button>
+      </div>
+      <datalist id="cityList">{% for city in cities %}<option value="{{ city }}">{% endfor %}</datalist>
+    </form>
+  </div>
+</section>
+
+<div class="container mt-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h5 class="mb-0">{{ source|title }} <i class="bi bi-arrow-right text-primary"></i> {{ destination|title }}</h5>
+      <small class="text-muted">{{ travel_date|date:"l, d M Y" }} &middot; {{ schedules|length }} bus{{ schedules|length|pluralize:"es" }} found</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {% if prev_url %}<a class="btn btn-outline-primary btn-sm" href="{{ prev_url }}"><i class="bi bi-chevron-left"></i> Prev day</a>{% endif %}
+      <a class="btn btn-outline-primary btn-sm" href="{{ next_url }}">Next day <i class="bi bi-chevron-right"></i></a>
+      {% if has_trips %}
+      <select id="sortBy" name="sort" form="filterForm" class="form-select form-select-sm w-auto">
+        {% for value, label in sort_choices %}
+          <option value="{{ value }}" {% if value == selected.sort %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-4">
+    {% if has_trips %}
+    <div class="col-lg-3">
+      <button class="btn btn-outline-primary d-lg-none w-100 mb-3" type="button"
+              data-bs-toggle="collapse" data-bs-target="#filterPanel">
+        <i class="bi bi-funnel me-1"></i>Filters
+      </button>
+      <div class="collapse d-lg-block" id="filterPanel">
+        <form method="get" id="filterForm" action="{% url 'buses:search' %}" class="filter-card">
+          <input type="hidden" name="source" value="{{ source }}">
+          <input type="hidden" name="destination" value="{{ destination }}">
+          <input type="hidden" name="date" value="{{ travel_date|date:'Y-m-d' }}">
+
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Filters</h5>
+            {% if has_filters %}<a href="{{ clear_url }}" class="small">Clear all</a>{% endif %}
+          </div>
+
+          <h6>Bus Type</h6>
+          {% for value, label in bus_types %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="bus_type" value="{{ value }}" id="bt-{{ value }}"
+                   {% if value in selected.bus_type %}checked{% endif %}>
+            <label class="form-check-label" for="bt-{{ value }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+
+          <h6>AC / Non-AC</h6>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="ac" value="" id="ac-all" {% if not selected.ac %}checked{% endif %}>
+            <label class="form-check-label" for="ac-all">All</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="ac" value="ac" id="ac-yes" {% if selected.ac == 'ac' %}checked{% endif %}>
+            <label class="form-check-label" for="ac-yes">AC</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="ac" value="non_ac" id="ac-no" {% if selected.ac == 'non_ac' %}checked{% endif %}>
+            <label class="form-check-label" for="ac-no">Non-AC</label>
+          </div>
+
+          <h6>Seater / Sleeper</h6>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="seat_type" value="" id="st-all" {% if not selected.seat_type %}checked{% endif %}>
+            <label class="form-check-label" for="st-all">All</label>
+          </div>
+          {% for value, label in seat_types %}
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="seat_type" value="{{ value }}" id="st-{{ value }}"
+                   {% if selected.seat_type == value %}checked{% endif %}>
+            <label class="form-check-label" for="st-{{ value }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+
+          <h6>Departure Time</h6>
+          {% for key, label, start, end in time_bands %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="dep" value="{{ key }}" id="dep-{{ key }}"
+                   {% if key in selected.dep %}checked{% endif %}>
+            <label class="form-check-label" for="dep-{{ key }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+
+          <h6>Arrival Time</h6>
+          {% for key, label, start, end in time_bands %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="arr" value="{{ key }}" id="arr-{{ key }}"
+                   {% if key in selected.arr %}checked{% endif %}>
+            <label class="form-check-label" for="arr-{{ key }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+
+          {% if price_high > price_low %}
+          <h6>Max Price: &#8377;<span id="maxPriceLabel">{{ selected.max_price }}</span></h6>
+          <input type="range" class="form-range" id="maxPrice" name="max_price"
+                 min="{{ price_low }}" max="{{ price_high }}" step="50" value="{{ selected.max_price }}">
+          <div class="d-flex justify-content-between small text-muted">
+            <span>&#8377;{{ price_low }}</span><span>&#8377;{{ price_high }}</span>
+          </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="{% if has_trips %}col-lg-9{% else %}col-12{% endif %}">
+      {% for s in schedules %}
+      <div class="bus-card mb-3">
+        <div class="row g-3 align-items-center">
+          <div class="col-lg-4">
+            <h5 class="mb-1">{{ s.bus.operator.name }}</h5>
+            <div class="small text-muted">
+              {{ s.bus.get_bus_type_display }} &middot; {% if s.bus.is_ac %}A/C{% else %}Non A/C{% endif %}
+              &middot; {{ s.bus.get_seat_type_display }}
+            </div>
+            <div class="small text-muted">Bus No: {{ s.bus.bus_number }}</div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="d-flex align-items-center justify-content-between">
+              <div class="text-center">
+                <div class="time-big">{{ s.departure_time|time:"h:i A" }}</div>
+                <div class="small text-muted">{{ s.travel_date|date:"d M" }}</div>
+              </div>
+              <div class="text-center flex-grow-1 px-2">
+                <div class="small text-muted">{{ s.route.duration_display }}</div>
+                <div class="duration-line"></div>
+              </div>
+              <div class="text-center">
+                <div class="time-big">{{ s.arrival_time|time:"h:i A" }}</div>
+                <div class="small text-muted">{{ s.arrival_datetime|date:"d M" }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-6 col-lg-2 text-lg-center">
+            {% if s.available_seats > 5 %}
+              <span class="text-success fw-semibold">{{ s.available_seats }} seats</span>
+            {% elif s.available_seats > 0 %}
+              <span class="text-warning fw-semibold">Only {{ s.available_seats }} left</span>
+            {% else %}
+              <span class="text-danger fw-semibold">Sold out</span>
+            {% endif %}
+          </div>
+
+          <div class="col-6 col-lg-2 text-end text-lg-center">
+            <div class="small text-muted">Starts at</div>
+            <div class="fs-4 fw-bold">&#8377;{{ s.bus.seat_price|floatformat:0 }}</div>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          {% for amenity in s.bus.amenity_list %}<span class="badge amenity-badge me-1">{{ amenity }}</span>{% endfor %}
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+          <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ s.pk }}">
+            <i class="bi bi-info-circle me-1"></i>Boarding &amp; dropping points
+          </button>
+          {% if s.available_seats > 0 %}
+              <a class="btn btn-primary" href="{% url 'buses:seats' s.pk %}">View Seats</a>
+          {% else %}
+            <span class="btn btn-secondary disabled">Sold out</span>
+          {% endif %}
+        </div>
+
+        <div class="collapse mt-3" id="details-{{ s.pk }}">
+          <div class="row g-3 border-top pt-3">
+            <div class="col-md-6">
+              <h6><i class="bi bi-geo-alt text-primary me-1"></i>Boarding Points</h6>
+              <ul class="list-unstyled small mb-0">
+                {% for point, when in s.boarding_times %}
+                <li class="mb-1"><strong>{{ when|time:"h:i A" }}</strong> &middot; {{ point.name }}
+                  <div class="text-muted">{{ point.address }}</div></li>
+                {% endfor %}
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <h6><i class="bi bi-geo-alt-fill text-danger me-1"></i>Dropping Points</h6>
+              <ul class="list-unstyled small mb-0">
+                {% for point, when in s.dropping_times %}
+                <li class="mb-1"><strong>{{ when|time:"h:i A" }}, {{ when|date:"d M" }}</strong> &middot; {{ point.name }}
+                  <div class="text-muted">{{ point.address }}</div></li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="auth-card text-center">
+        <i class="bi bi-emoji-frown display-4 text-muted"></i>
+        {% if has_trips %}
+          <h5 class="mt-2">No buses match your filters</h5>
+          <a href="{{ clear_url }}" class="btn btn-primary mt-2">Clear filters</a>
+        {% else %}
+          <h5 class="mt-2">No buses found for this route and date</h5>
+          <p class="text-muted mb-2">Try another date or a different route.</p>
+          {% if next_available_url %}
+            <a href="{{ next_available_url }}" class="btn btn-primary">Show next available date</a>
+          {% endif %}
+          <a href="{% url 'buses:routes' %}" class="btn btn-outline-primary">Browse routes</a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/search.js' %}"></script>
+{% endblock %}

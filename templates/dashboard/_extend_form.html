@@ -1,0 +1,8 @@
+<form method="post" action="{% url 'dashboard:bulk_schedules' %}" class="d-flex gap-2">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="extend">
+  <select name="days" class="form-select">
+    {% for d in extend_choices %}<option value="{{ d }}" {% if d == 60 %}selected{% endif %}>Next {{ d }} days</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn btn-success text-nowrap"><i class="bi bi-arrow-repeat me-1"></i>Extend</button>
+</form>

@@ -1,0 +1,32 @@
+<div class="info-card mb-3">
+  <div class="d-flex flex-wrap justify-content-between gap-3">
+    <div>
+      <div class="small text-muted">PNR <strong>{{ b.pnr }}</strong></div>
+      <h5 class="mb-0">{{ b.schedule.route.source }} <i class="bi bi-arrow-right text-primary"></i> {{ b.schedule.route.destination }}</h5>
+      <div class="small text-muted">
+        {{ b.schedule.bus.operator.name }} &middot; {{ b.schedule.travel_date|date:"d M Y" }}
+        &middot; {{ b.schedule.departure_time|time:"h:i A" }}
+      </div>
+      <div class="small mt-1">
+        Seats: <strong>{% for p in b.passengers.all %}{{ p.seat.seat_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong>
+      </div>
+    </div>
+    <div class="text-md-end">
+      <span class="badge text-bg-{% if b.booking_status == 'CONFIRMED' %}success{% elif b.booking_status == 'PENDING' %}warning{% else %}danger{% endif %}">
+        {{ b.get_booking_status_display }}
+      </span>
+      <div class="fs-5 fw-bold mt-1">&#8377;{{ b.total_amount|floatformat:0 }}</div>
+      <div class="d-flex flex-wrap gap-2 justify-content-md-end mt-2">
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'bookings:detail' b.pnr %}">Details</a>
+        {% if b.booking_status == 'PENDING' %}
+          <a class="btn btn-success btn-sm" href="{% url 'payments:pay' b.pnr %}">Pay now</a>
+        {% elif b.booking_status == 'CONFIRMED' %}
+          <a class="btn btn-primary btn-sm" href="{% url 'bookings:ticket' b.pnr %}">E-Ticket</a>
+          {% if show_cancel %}
+            <a class="btn btn-outline-danger btn-sm" href="{% url 'bookings:cancel' b.pnr %}">Cancel</a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

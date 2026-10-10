@@ -1,0 +1,104 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}{{ meta.title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h4 class="mb-0">
+    <i class="bi {{ meta.icon }} me-2"></i>{{ meta.title }}
+    <span class="badge text-bg-secondary fs-6">{{ page.paginator.count }}</span>
+  </h4>
+  {% if meta.create %}
+    <div class="d-flex gap-2">
+    {% if entity == 'schedules' %}
+    <a class="btn btn-outline-primary" href="{% url 'dashboard:bulk_schedules' %}"><i class="bi bi-calendar-plus me-1"></i>Bulk Add</a>
+    {% endif %}
+    {% if meta.create %}
+    <a class="btn btn-primary" href="{% url 'dashboard:add' entity %}"><i class="bi bi-plus-lg me-1"></i>Add {{ meta.singular }}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+  {% if has_search %}
+  <div class="col-md-4">
+    <label class="form-label small mb-0">Search</label>
+    <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Type and press Enter">
+  </div>
+  {% endif %}
+  {% for f in filters %}
+  <div class="col-md-2 col-6">
+    <label class="form-label small mb-0">{{ f.label }}</label>
+    {% if f.type == 'date' %}
+      <input type="date" name="{{ f.param }}" value="{{ f.value }}" class="form-control form-control-sm">
+    {% else %}
+      <select name="{{ f.param }}" class="form-select form-select-sm">
+        <option value="">All</option>
+        {% for value, label in f.choices %}
+          <option value="{{ value }}" {% if value == f.value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Apply</button>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard:list' entity %}">Reset</a>
+  </div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>{% for label in headers %}<th>{{ label }}</th>{% endfor %}<th class="text-end">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          {% for cell in row.cells %}
+          <td>
+            {% if cell.is_bool %}
+              <span class="badge text-bg-{% if cell.value %}success{% else %}secondary{% endif %}">{% if cell.value %}Yes{% else %}No{% endif %}</span>
+            {% else %}{{ cell.value|default_if_none:"&mdash;" }}{% endif %}
+          </td>
+          {% endfor %}
+          <td class="text-end text-nowrap">
+            {% if meta.detail %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard:booking' row.obj.pk %}" title="View"><i class="bi bi-eye"></i></a>
+            {% endif %}
+            {% if meta.edit %}
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'dashboard:edit' entity row.obj.pk %}" title="Edit"><i class="bi bi-pencil"></i></a>
+            {% endif %}
+            {% if meta.delete %}
+              <form method="post" action="{% url 'dashboard:delete' entity row.obj.pk %}" class="d-inline"
+                    onsubmit="return confirm('Delete this record? This cannot be undone.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="{{ colspan }}" class="text-center text-muted py-4">No records found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page.has_other_pages %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center">
+    {% if page.has_previous %}
+      <li class="page-item"><a class="page-link" href="?{{ qs }}&page={{ page.previous_page_number }}">Previous</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page.number }} of {{ page.paginator.num_pages }}</span></li>
+    {% if page.has_next %}
+      <li class="page-item"><a class="page-link" href="?{{ qs }}&page={{ page.next_page_number }}">Next</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

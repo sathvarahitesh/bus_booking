@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Passenger Details{% endblock %}
+
+{% block extra_css %}<link href="{% static 'css/booking.css' %}" rel="stylesheet">{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <a class="small text-decoration-none" href="{% url 'buses:seats' schedule.pk %}">
+    <i class="bi bi-arrow-left"></i> Change seats
+  </a>
+
+  <form method="post" novalidate class="mt-2">
+    {% csrf_token %}
+    <div class="row g-4">
+
+      <div class="col-lg-8">
+        <h4 class="section-title">Passenger Details</h4>
+        {% for seat, form in seat_forms %}
+        <div class="info-card mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>Passenger {{ forloop.counter }}</strong>
+            <span class="badge text-bg-success">Seat {{ seat.seat_number }}</span>
+          </div>
+          <div class="row">
+            <div class="col-md-6">{% include 'accounts/_field.html' with field=form.name %}</div>
+            <div class="col-md-3 col-6">{% include 'accounts/_field.html' with field=form.age %}</div>
+            <div class="col-md-3 col-6">{% include 'accounts/_field.html' with field=form.gender %}</div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <h4 class="section-title mt-4">Contact Details</h4>
+        <div class="info-card">
+          <p class="text-muted small">Your booking details and PNR are linked to this mobile number.</p>
+          <div class="row">
+            <div class="col-md-6">{% include 'accounts/_field.html' with field=contact_form.phone %}</div>
+            <div class="col-md-6">{% include 'accounts/_field.html' with field=contact_form.email %}</div>
+          </div>
+          {% if not user.is_authenticated %}
+          <div class="small text-muted">
+            Optional: <a href="{% url 'accounts:login' %}?next={{ request.path }}">Login</a> to save this booking in your account.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="summary-card">
+          <h5 class="mb-1">{{ schedule.bus.operator.name }}</h5>
+          <div class="small text-muted">
+            {{ schedule.bus.get_bus_type_display }} &middot; {% if schedule.bus.is_ac %}A/C{% else %}Non A/C{% endif %}
+            &middot; {{ schedule.bus.get_seat_type_display }}
+          </div>
+          <div class="mt-2 fw-semibold">{{ schedule.route.source }} <i class="bi bi-arrow-right"></i> {{ schedule.route.destination }}</div>
+          <div class="small text-muted">
+            {{ schedule.travel_date|date:"d M Y" }} &middot;
+            {{ schedule.departure_time|time:"h:i A" }} &ndash; {{ schedule.arrival_time|time:"h:i A" }}
+          </div>
+          <hr>
+          <div class="small mb-1"><i class="bi bi-geo-alt text-primary me-1"></i><strong>{{ boarding_time|time:"h:i A" }}</strong> &middot; {{ boarding.name }}</div>
+          <div class="small"><i class="bi bi-geo-alt-fill text-danger me-1"></i><strong>{{ dropping_time|time:"h:i A, d M" }}</strong> &middot; {{ dropping.name }}</div>
+          <hr>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">Seats</span>
+            <span class="fw-semibold">{% for seat, form in seat_forms %}{{ seat.seat_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+          </div>
+          <div class="d-flex justify-content-between small mt-1">
+            <span class="text-muted">&#8377;{{ schedule.fare|floatformat:0 }} &times; {{ seat_forms|length }}</span>
+            <span>&#8377;{{ total|floatformat:0 }}</span>
+          </div>
+          <div class="d-flex justify-content-between mt-2">
+            <span class="fw-semibold">Total fare</span>
+            <span class="fs-5 fw-bold">&#8377;{{ total|floatformat:0 }}</span>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 mt-3">
+            Continue <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+          <div class="small text-muted mt-2">Seats are held for {{ hold_minutes }} minutes after you continue.</div>
+        </div>
+      </div>
+
+    </div>
+  </form>
+</div>
+{% endblock %}

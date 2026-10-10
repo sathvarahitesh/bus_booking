@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="container auth-wrap">
+  <!-- <h3 class="section-title">My Profile</h3> -->
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="auth-card">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+          {% endif %}
+          <div class="row">
+            {% for field in form %}
+              <div class="col-md-6">{% include 'accounts/_field.html' %}</div>
+            {% endfor %}
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+        </form>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="auth-card">
+        <div class="feature-icon"><i class="bi bi-person-fill"></i></div>
+        <h5 class="mb-0">{{ user.get_full_name|default:user.username }}</h5>
+        <p class="text-muted small mb-3">@{{ user.username }}</p>
+        <p class="small mb-1"><strong>Member since:</strong> {{ user.date_joined|date:"d M Y" }}</p>
+        <p class="small mb-3"><strong>Email:</strong> {{ user.email }}</p>
+        <a href="{% url 'accounts:password_change' %}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-key me-1"></i>Change Password
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

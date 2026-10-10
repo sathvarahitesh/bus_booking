@@ -1,0 +1,75 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h4>
+
+<div class="row g-3 mb-4">
+  {% for s in stats %}
+  <div class="col-xl-3 col-md-4 col-sm-6">
+    <div class="stat-card">
+      <div class="stat-icon text-bg-{{ s.color }} bg-opacity-10 text-{{ s.color }}"><i class="bi {{ s.icon }}"></i></div>
+      <div>
+        <div class="stat-value">{{ s.value }}</div>
+        <div class="small text-muted">{{ s.label }}</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-6">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold">Revenue, last 7 days</div>
+      <div class="card-body"><canvas id="revenueChart" height="140"></canvas></div>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold d-flex justify-content-between">
+        Recent bookings <a class="small" href="{% url 'dashboard:list' 'bookings' %}">View all</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light"><tr><th>PNR</th><th>Route</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for b in recent %}
+            <tr>
+              <td><a href="{% url 'dashboard:booking' b.pk %}">{{ b.pnr }}</a></td>
+              <td>{{ b.schedule.route }}</td>
+              <td>&#8377;{{ b.total_amount|floatformat:0 }}</td>
+              <td>{{ b.get_booking_status_display }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-3">No bookings yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{{ chart_labels|json_script:"chart-labels" }}
+{{ chart_values|json_script:"chart-values" }}
+<script>
+  new Chart(document.getElementById('revenueChart'), {
+    type: 'bar',
+    data: {
+      labels: JSON.parse(document.getElementById('chart-labels').textContent),
+      datasets: [{
+        label: 'Revenue (\u20B9)',
+        data: JSON.parse(document.getElementById('chart-values').textContent),
+        backgroundColor: '#0d6efd',
+        borderRadius: 4
+      }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+</script>
+{% endblock %}

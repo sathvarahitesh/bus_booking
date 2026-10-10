@@ -1,0 +1,170 @@
+:root {
+  --brand: #0d6efd;
+  --brand-dark: #0a3d91;
+  --accent: #ffc107;
+  --footer-bg: #0b1f3a;
+}
+
+body { background: #f5f7fb; color: #212529; }
+
+.app-navbar { background: linear-gradient(90deg, var(--brand-dark), var(--brand)); }
+
+.hero {
+  background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 100%);
+  padding: 4rem 0 6rem;
+}
+
+.search-card {
+  background: #fff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+  max-width: 1000px;
+  margin: 0 auto;
+  margin-bottom: -4rem;
+}
+
+.btn-swap { cursor: pointer; }
+.btn-swap:hover { background: #e9ecef; }
+
+.section-gap { margin-top: 3rem; }
+.hero + .section-gap { margin-top: 6rem; }
+
+.section-title {
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  padding-left: .75rem;
+  border-left: 5px solid var(--accent);
+}
+
+.route-card {
+  display: block;
+  background: #fff;
+  border-radius: .75rem;
+  padding: 1rem;
+  text-align: center;
+  text-decoration: none;
+  color: #212529;
+  border: 1px solid #e3e8f0;
+  transition: transform .15s, box-shadow .15s;
+}
+.route-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(13, 110, 253, .15);
+  color: #212529;
+}
+
+.feature-card {
+  background: #fff;
+  border-radius: .75rem;
+  padding: 1.5rem;
+  border: 1px solid #e3e8f0;
+}
+.feature-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(13, 110, 253, .1);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: .75rem;
+}
+
+.app-footer { background: var(--footer-bg); color: #b8c4d6; }
+
+@media (max-width: 575.98px) {
+  .hero { padding: 2.5rem 0 5rem; }
+  .hero h1 { font-size: 1.8rem; }
+  .search-card { padding: 1rem; }
+}
+.auth-wrap { padding: 3rem 0 1rem; }
+
+.auth-card {
+  background: #fff;
+  border-radius: 1rem;
+  padding: 2rem;
+  border: 1px solid #e3e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .06);
+}
+
+.auth-card .errorlist { list-style: none; padding: 0; margin: 0; }
+.form-text ul { padding-left: 1.1rem; margin-bottom: 0; }
+
+.results-head {
+  background: linear-gradient(90deg, var(--brand-dark), var(--brand));
+  padding: 1rem 0;
+}
+
+.filter-card {
+  background: #fff;
+  border: 1px solid #e3e8f0;
+  border-radius: .75rem;
+  padding: 1rem;
+}
+.filter-card h6 { font-weight: 700; margin: 1rem 0 .4rem; font-size: .9rem; }
+
+.bus-card {
+  background: #fff;
+  border: 1px solid #e3e8f0;
+  border-radius: .75rem;
+  padding: 1.25rem;
+  transition: box-shadow .15s;
+}
+.bus-card:hover { box-shadow: 0 6px 18px rgba(13, 110, 253, .12); }
+
+.time-big { font-size: 1.3rem; font-weight: 700; }
+.duration-line { border-top: 2px dashed #b8c4d6; margin-top: .35rem; }
+.amenity-badge { background: #eef3fb; color: #35507a; font-weight: 500; }
+
+.deck-card {
+  background: #fff;
+  border: 2px solid #cfd8e6;
+  border-radius: 1.2rem;
+  padding: 1rem;
+}
+
+.seat-row { display: grid; gap: .5rem; margin-bottom: .5rem; }
+.seat-row-seater { grid-template-columns: 1fr 1fr 28px 1fr 1fr; }
+.seat-row-sleeper { grid-template-columns: 1fr 1fr 28px 1fr; }
+
+.seat {
+  width: 100%;
+  height: 44px;
+  border: 2px solid #6c9bd1;
+  border-radius: .4rem .4rem .8rem .8rem;
+  background: #fff;
+  color: #2d4b73;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s;
+}
+.seat-row-sleeper .seat { height: 68px; border-radius: .5rem; }
+.seat:hover:not(:disabled) { background: #e8f1ff; }
+.seat.selected { background: #198754; border-color: #198754; color: #fff; }
+.seat.booked { background: #d9dde3; border-color: #c3c9d2; color: #8a929c; cursor: not-allowed; }
+
+.legend-box {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid;
+  vertical-align: middle;
+  margin-right: .35rem;
+}
+.legend-box.available { border-color: #6c9bd1; background: #fff; }
+.legend-box.selected { border-color: #198754; background: #198754; }
+.legend-box.booked { border-color: #c3c9d2; background: #d9dde3; }
+
+.summary-card {
+  position: sticky;
+  top: 80px;
+  background: #fff;
+  border: 1px solid #e3e8f0;
+  border-radius: .75rem;
+  padding: 1.25rem;
+}

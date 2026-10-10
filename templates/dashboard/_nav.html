@@ -1,0 +1,19 @@
+<a class="dash-link {% if active == 'index' %}active{% endif %}" href="{% url 'dashboard:index' %}">
+  <i class="bi bi-speedometer2"></i>Dashboard
+</a>
+<div class="dash-nav-label">Manage</div>
+{% for key, title, icon in nav %}
+<a class="dash-link {% if active == key %}active{% endif %}" href="{% url 'dashboard:list' key %}">
+  <i class="bi {{ icon }}"></i>{{ title }}
+</a>
+{% endfor %}
+<a class="dash-link {% if active == 'bulk' %}active{% endif %}" href="{% url 'dashboard:bulk_schedules' %}">
+  <i class="bi bi-calendar-plus"></i>Bulk Schedules
+</a>
+
+<div class="dash-nav-label">Insights</div>
+<a class="dash-link {% if active == 'reports' %}active{% endif %}" href="{% url 'dashboard:reports' %}">
+  <i class="bi bi-graph-up-arrow"></i>Reports
+</a>
+<div class="dash-nav-label">Other</div>
+<a class="dash-link" href="{% url 'admin:index' %}"><i class="bi bi-gear"></i>Django Admin</a>

@@ -1,0 +1,27 @@
+<form method="post" action="{% url 'dashboard:bulk_schedules' %}" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="action" value="create">
+  {% if form.non_field_errors %}<div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="row">
+    <div class="col-md-6">{% include 'accounts/_field.html' with field=form.bus %}</div>
+    <div class="col-md-6">{% include 'accounts/_field.html' with field=form.route %}</div>
+    <div class="col-md-4">{% include 'accounts/_field.html' with field=form.start_date %}</div>
+    <div class="col-md-4">{% include 'accounts/_field.html' with field=form.end_date %}</div>
+    <div class="col-md-4">{% include 'accounts/_field.html' with field=form.departure_time %}</div>
+  </div>
+  <label class="form-label">Run on</label>
+  <div class="mb-3">
+    {% for cb in form.weekdays %}
+    <div class="form-check form-check-inline">
+      {{ cb.tag }}
+      <label class="form-check-label" for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label>
+    </div>
+    {% endfor %}
+    {% for error in form.weekdays.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+  </div>
+  <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Create Trips</button>
+  <div class="small text-muted mt-3">
+    Arrival time is calculated from the route duration. Existing trips are skipped, and a bus is never
+    scheduled on two overlapping trips.
+  </div>
+</form>
