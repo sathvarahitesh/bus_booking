@@ -78,3 +78,11 @@
   border-radius: .75rem;
   padding: 1.25rem;
 }
+
+.choice-card {
+  border: 2px solid #e3e8f0;
+  border-radius: .75rem;
+  padding: 1rem;
+  background: #fff;
+}
+.choice-card.active { border-color: #0d6efd; background: #f3f8ff; }

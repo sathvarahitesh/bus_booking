@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Ticket verification{% endblock %}
+
+{% block content %}
+<div class="container auth-wrap">
+  <div class="row justify-content-center">
+    <div class="col-lg-5 col-md-7">
+
+      {% if throttled %}
+      <div class="auth-card text-center">
+        <i class="bi bi-hourglass-split display-4 text-warning"></i>
+        <h4 class="mt-2">Too many requests</h4>
+        <p class="text-muted mb-0">Please wait a few minutes and try again.</p>
+      </div>
+
+      {% else %}
+      <div class="auth-card text-center">
+        {% if valid %}
+          <i class="bi bi-patch-check-fill display-3 text-success"></i>
+          <h3 class="mt-2 text-success">VALID TICKET</h3>
+        {% else %}
+          <i class="bi bi-x-octagon-fill display-3 text-danger"></i>
+          <h3 class="mt-2 text-danger">NOT VALID</h3>
+          <p class="text-muted mb-0">This booking is {{ booking.get_booking_status_display|lower }}.</p>
+        {% endif %}
+
+        <table class="table table-sm text-start mt-3 mb-0">
+          <tr><th>PNR</th><td>{{ booking.pnr }}</td></tr>
+          <tr><th>Operator</th><td>{{ schedule.bus.operator.name }}</td></tr>
+          <tr><th>Bus number</th><td>{{ schedule.bus.bus_number }}</td></tr>
+          <tr><th>Route</th><td>{{ schedule.route.source }} to {{ schedule.route.destination }}</td></tr>
+          <tr><th>Travel date</th><td>{{ schedule.travel_date|date:"d M Y" }}</td></tr>
+          <tr><th>Departure</th><td>{{ schedule.departure_time|time:"h:i A" }}</td></tr>
+          {% if valid %}<tr><th>Seats booked</th><td>{{ seat_count }}</td></tr>{% endif %}
+        </table>
+
+        {% if passengers %}
+        <h6 class="text-start mt-3">Passengers (visible to admins only)</h6>
+        <table class="table table-sm text-start mb-0">
+          {% for p in passengers %}
+          <tr><td>{{ p.name }}</td><td>Seat {{ p.seat.seat_number }}</td>
+              <td>{% if p.is_cancelled %}<span class="badge text-bg-secondary">Cancelled</span>{% endif %}</td></tr>
+          {% endfor %}
+        </table>
+        {% endif %}
+
+        <p class="small text-muted mt-3 mb-0">
+          Passenger names and contact details are not shown publicly. Demo academic project.
+        </p>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

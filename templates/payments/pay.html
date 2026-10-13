@@ -8,6 +8,13 @@
 {% block content %}
 <div class="container mt-4">
 
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Pay &#8377;{{ booking.total_amount|floatformat:0 }}</h4>
+    <div class="fw-semibold text-warning-emphasis">
+      <i class="bi bi-stopwatch me-1"></i><span id="countdown" data-seconds="{{ remaining_seconds }}"></span>
+    </div>
+  </div>
+
   <div class="alert alert-info py-2 small">
     <strong>DEMO PAYMENT</strong> &mdash; no real money is charged.
     Test card: <code>4111 1111 1111 1111</code>, any future expiry, any 3-digit CVV.
@@ -18,7 +25,7 @@
   <div class="info-card mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
     <div>
       <strong>Login for faster checkout</strong>
-      <div class="small text-muted">Save this booking in your account, or simply continue as guest below.</div>
+      <div class="small text-muted">Optional. Save this booking in your account, or just continue as guest below.</div>
     </div>
     <div class="d-flex gap-2">
       <a class="btn btn-outline-primary btn-sm" href="{% url 'accounts:login' %}?next={{ request.path }}">Login</a>
@@ -74,12 +81,18 @@
           <div class="small text-muted">
             {{ schedule.travel_date|date:"d M Y" }} &middot; {{ schedule.departure_time|time:"h:i A" }}
           </div>
-          <div class="small mt-2">
-            Seats: <strong>{% for p in passengers %}{{ p.seat.seat_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong>
+          <hr>
+          <h6>Fare breakup</h6>
+          <div class="d-flex justify-content-between small">
+            <span class="text-muted">Base fare &times; {{ passengers|length }} seat{{ passengers|length|pluralize }}</span>
+            <span>&#8377;{{ booking.total_amount|floatformat:0 }}</span>
+          </div>
+          <div class="small text-muted mt-1">
+            Seats: {% for p in passengers %}{{ p.seat.seat_number }}{% if not forloop.last %}, {% endif %}{% endfor %}
           </div>
           <hr>
           <div class="d-flex justify-content-between">
-            <span class="fw-semibold">Amount payable</span>
+            <span class="fw-semibold">Total</span>
             <span class="fs-4 fw-bold">&#8377;{{ booking.total_amount|floatformat:0 }}</span>
           </div>
           <button type="submit" id="payBtn" class="btn btn-success w-100 mt-3"
@@ -89,8 +102,13 @@
           <button type="submit" name="action" value="fail" class="btn btn-link text-danger btn-sm w-100 mt-1">
             Simulate failed payment (demo)
           </button>
-          <div class="small text-muted mt-2">
-            <i class="bi bi-stopwatch me-1"></i>Seats held for <strong id="countdown" data-seconds="{{ remaining_seconds }}"></strong> minutes
+          <div class="small text-muted mt-3">
+            <i class="bi bi-envelope-check me-1"></i>
+            {% if booking.contact_email %}
+              The e-ticket will be sent to <strong>{{ booking.contact_email }}</strong> once the payment is confirmed.
+            {% else %}
+              Your e-ticket will be available on screen once the payment is confirmed.
+            {% endif %}
           </div>
         </div>
       </div>

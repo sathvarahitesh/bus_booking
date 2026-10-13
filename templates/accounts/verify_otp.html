@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Verify your email{% endblock %}
+
+{% block content %}
+<div class="container auth-wrap">
+  <div class="row justify-content-center">
+    <div class="col-lg-5 col-md-7">
+      <div class="auth-card text-center">
+        <i class="bi bi-envelope-check display-4 text-primary"></i>
+        <h3 class="mt-2">Check your email</h3>
+        <p class="text-muted">
+          We sent a 6-digit code to <strong>{{ email }}</strong>.
+          It expires in 5 minutes and works only once.
+        </p>
+
+        <form method="post" novalidate class="text-start">
+          {% csrf_token %}
+          {% for field in form %}{% include 'accounts/_field.html' %}{% endfor %}
+          <button type="submit" class="btn btn-primary w-100">Verify</button>
+        </form>
+
+        <hr>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="resend">
+          <button type="submit" id="resendBtn" class="btn btn-outline-secondary btn-sm"
+                  data-cooldown="{{ cooldown }}" {% if cooldown %}disabled{% endif %}>
+            Resend code
+          </button>
+          <span class="small text-muted" id="resendNote"></span>
+        </form>
+        <p class="small mt-3 mb-0"><a href="{{ back_url }}">Go back</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/otp.js' %}"></script>{% endblock %}
+        

@@ -16,6 +16,29 @@
     <div class="row g-4">
 
       <div class="col-lg-8">
+        {% if not user.is_authenticated or user.is_staff %}
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="choice-card active h-100">
+              <div class="fw-semibold"><i class="bi bi-person-check me-1"></i>Continue as Guest</div>
+              <div class="small text-muted">
+                No account needed. Fill in the details below and your e-ticket is sent to your email.
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="choice-card h-100">
+              <div class="fw-semibold"><i class="bi bi-box-arrow-in-right me-1"></i>Login / Register</div>
+              <div class="small text-muted mb-2">
+                For faster checkout and booking history. Your selected seats are kept.
+              </div>
+              <a class="btn btn-outline-primary btn-sm" href="{% url 'accounts:login' %}?next={{ request.path }}">Login</a>
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'accounts:register' %}?next={{ request.path }}">Register</a>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
         <h4 class="section-title">Passenger Details</h4>
         {% for seat, form in seat_forms %}
         <div class="info-card mb-3">
@@ -33,16 +56,14 @@
 
         <h4 class="section-title mt-4">Contact Details</h4>
         <div class="info-card">
-          <p class="text-muted small">Your booking details and PNR are linked to this mobile number.</p>
+          <p class="text-muted small">
+            Your e-ticket and booking confirmation are sent to this email.
+            Your PNR and mobile number let you find the booking later.
+          </p>
           <div class="row">
             <div class="col-md-6">{% include 'accounts/_field.html' with field=contact_form.phone %}</div>
             <div class="col-md-6">{% include 'accounts/_field.html' with field=contact_form.email %}</div>
           </div>
-          {% if not user.is_authenticated %}
-          <div class="small text-muted">
-            Optional: <a href="{% url 'accounts:login' %}?next={{ request.path }}">Login</a> to save this booking in your account.
-          </div>
-          {% endif %}
         </div>
       </div>
 
@@ -75,7 +96,7 @@
             <span class="fs-5 fw-bold">&#8377;{{ total|floatformat:0 }}</span>
           </div>
           <button type="submit" class="btn btn-primary w-100 mt-3">
-            Continue <i class="bi bi-arrow-right ms-1"></i>
+            Continue to payment <i class="bi bi-arrow-right ms-1"></i>
           </button>
           <div class="small text-muted mt-2">Seats are held for {{ hold_minutes }} minutes after you continue.</div>
         </div>

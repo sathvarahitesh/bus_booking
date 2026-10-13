@@ -1,3 +1,4 @@
+import hashlib
 from functools import wraps
 
 from django.contrib import messages
@@ -7,9 +8,11 @@ from django.shortcuts import redirect
 MESSAGE = 'Too many attempts. Please wait a few minutes and try again.'
 
 
-def limit_reached(request, scope, limit=10, window=300):
-    """Count attempts per IP address. True when the limit is exceeded."""
-    key = f"throttle:{scope}:{request.META.get('REMOTE_ADDR', 'unknown')}"
+def limit_reached(request, scope, limit=10, window=300, ident=None):
+    """Count attempts per IP address, or per `ident` (for example an email). True when exceeded."""
+    who = (hashlib.sha256(ident.encode()).hexdigest()[:32] if ident
+           else request.META.get('REMOTE_ADDR', 'unknown'))
+    key = f'throttle:{scope}:{who}'
     cache.add(key, 0, window)
     try:
         count = cache.incr(key)

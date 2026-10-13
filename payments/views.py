@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.db import transaction
+from bookings.services import confirm_booking
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -51,20 +51,14 @@ def pay(request, pnr):
             return redirect('payments:pay', pnr=booking.pnr)
 
         if form.is_valid():
-            method = form.cleaned_data['method']
-            with transaction.atomic():
-                payment = Payment.objects.create(
-                    booking=booking, method=method, amount=booking.total_amount)
-                if method == 'COUNTER':
-                    booking.booking_status = 'CONFIRMED'  # payment stays pending
-                else:
-                    payment.status = 'SUCCESS'
-                    payment.paid_at = timezone.now()
-                    payment.save()
-                    booking.booking_status = 'CONFIRMED'
-                    booking.payment_status = 'PAID'
-                booking.save()
-            messages.success(request, 'Booking confirmed! Your e-ticket is ready.')
+            confirmed, _payment = confirm_booking(booking, form.cleaned_data['method'])
+            if confirmed:
+                messages.success(request, 'Booking confirmed! Your e-ticket is ready.')
+            elif booking.booking_status == 'CONFIRMED':
+                messages.info(request, 'This booking is already confirmed.')
+            else:
+                messages.error(request, 'This booking has expired. Please book again.')
+                return redirect('bookings:detail', pnr=booking.pnr)
             return redirect('bookings:ticket', pnr=booking.pnr)
 
     expires_at = booking.created_at + timedelta(minutes=HOLD_MINUTES)

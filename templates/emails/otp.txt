@@ -1,0 +1,10 @@
+{% autoescape off %}Hello {{ name }},
+
+Your {{ site_name }} verification code is: {{ code }}
+
+Use it within {{ minutes }} minutes to {{ action }}. It can be used only once.
+
+If you did not request this, you can ignore this email. Never share this code with anyone.
+
+{{ site_name }}
+{% endautoescape %}

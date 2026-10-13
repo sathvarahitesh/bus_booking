@@ -1,7 +1,6 @@
 import math
 from urllib.parse import urlencode
-from bookings.services import release_expired_holds
-
+from bookings.utils import release_expired_holds
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 

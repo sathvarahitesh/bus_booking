@@ -20,9 +20,13 @@ class BusOperator(models.Model):
 class Bus(models.Model):
     BUS_TYPES = [
         ('volvo', 'Volvo'),
-        ('scania', 'Scania'),
-        ('mercedes', 'Mercedes'),
-        ('standard', 'Standard'),
+        # ('scania', 'Scania'),
+        # ('mercedes', 'Mercedes'),
+        # ('standard', 'Standard'),
+        ('mini', 'Mini'),
+        ('luxury', 'Luxury'),
+        ('BharatBenz', 'BharatBenz'),
+        ('Electric', 'Electric'),
     ]
     SEAT_TYPES = [('seater', 'Seater'), ('sleeper', 'Sleeper')]
 

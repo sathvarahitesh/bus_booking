@@ -168,3 +168,10 @@ body { background: #f5f7fb; color: #212529; }
   border-radius: .75rem;
   padding: 1.25rem;
 }
+
+#id_code { 
+  text-align: center; 
+  font-size: 1.6rem; 
+  font-weight: 600; 
+  letter-spacing: .5em; 
+}

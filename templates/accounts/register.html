@@ -5,10 +5,13 @@
 {% block content %}
 <div class="container auth-wrap">
   <div class="row justify-content-center">
-    <div class="col-lg-7 col-md-9">
+    <div class="col-lg-6 col-md-9">
       <div class="auth-card">
         <h3 class="mb-1">Create your account</h3>
-                <p class="text-muted">Optional. Create an account to keep all your bookings in one place.</p>
+        <p class="text-muted">
+          Optional. An account keeps all your bookings in one place.
+          We will email you a 6-digit code to verify your address.
+        </p>
         <form method="post" novalidate>
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ next }}">
@@ -16,17 +19,20 @@
             <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
           {% endif %}
           <div class="row">
-            {% for field in form %}
-              <div class="{% if field.name == 'email' or field.name == 'password1' or field.name == 'password2' %}col-12{% else %}col-md-6{% endif %}">
-                {% include 'accounts/_field.html' %}
-              </div>
-            {% endfor %}
+            <div class="col-12">{% include 'accounts/_field.html' with field=form.name %}</div>
+            <div class="col-md-7">{% include 'accounts/_field.html' with field=form.email %}</div>
+            <div class="col-md-5">{% include 'accounts/_field.html' with field=form.phone %}</div>
+            <div class="col-md-6">{% include 'accounts/_field.html' with field=form.password1 %}</div>
+            <div class="col-md-6">{% include 'accounts/_field.html' with field=form.password2 %}</div>
           </div>
-          <button type="submit" class="btn btn-primary w-100">Register</button>
+          <button type="submit" class="btn btn-primary w-100">Send verification code</button>
         </form>
-        <p class="text-center mt-3 mb-0">
+        <p class="text-center mt-3 mb-1">
           Already have an account?
           <a href="{% url 'accounts:login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Login</a>
+        </p>
+        <p class="text-center small text-muted mb-0">
+          No account needed to book. <a href="{% url 'core:home' %}">Continue as guest</a>
         </p>
       </div>
     </div>

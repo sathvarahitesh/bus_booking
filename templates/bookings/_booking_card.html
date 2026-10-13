@@ -22,6 +22,7 @@
           <a class="btn btn-success btn-sm" href="{% url 'payments:pay' b.pnr %}">Pay now</a>
         {% elif b.booking_status == 'CONFIRMED' %}
           <a class="btn btn-primary btn-sm" href="{% url 'bookings:ticket' b.pnr %}">E-Ticket</a>
+          <a class="btn btn-outline-primary btn-sm" href="{% url 'bookings:ticket_pdf' b.pnr %}">PDF</a>
           {% if show_cancel %}
             <a class="btn btn-outline-danger btn-sm" href="{% url 'bookings:cancel' b.pnr %}">Cancel</a>
           {% endif %}

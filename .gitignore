@@ -6,3 +6,4 @@ media/
 .env
 .vscode/
 staticfiles/
+env.ps1

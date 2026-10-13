@@ -1,5 +1,6 @@
 import secrets
 import string
+import uuid
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -34,6 +35,10 @@ class Booking(models.Model):
     booking_status = models.CharField(max_length=10, choices=BOOKING_STATUS, default='PENDING')
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
+    ticket_uid = models.UUIDField(null=True, blank=True, unique=True, editable=False)
+    access_token_hash = models.CharField(max_length=64, blank=True, default='',
+                                         db_index=True, editable=False)
+    access_expires_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         ordering = ['-created_at']
@@ -48,7 +53,19 @@ class Booking(models.Model):
                 if not Booking.objects.filter(pnr=pnr).exists():
                     self.pnr = pnr
                     break
+
+        if self.ticket_uid is None:
+            self.ticket_uid = uuid.uuid4()
+
         super().save(*args, **kwargs)
+
+    def ensure_ticket_uid(self):
+        """Older bookings may have no ticket id yet; create it on first use."""
+        if self.ticket_uid is None:
+            self.ticket_uid = uuid.uuid4()
+            self.save(update_fields=['ticket_uid'])
+        return self.ticket_uid
+
 
 
 class Passenger(models.Model):
@@ -77,6 +94,9 @@ class Passenger(models.Model):
     def save(self, *args, **kwargs):
         if not self.schedule_id:
             self.schedule = self.booking.schedule
+
+    
+
         super().save(*args, **kwargs)
 
 
@@ -91,3 +111,36 @@ class Cancellation(models.Model):
 
     def __str__(self):
         return f'Cancellation of {self.booking.pnr}'
+
+
+class Notification(models.Model):
+    """One email or SMS per booking and kind. The unique constraint blocks duplicate sends."""
+    CHANNELS = [('EMAIL', 'Email'), ('SMS', 'SMS')]
+    KINDS = [('CONFIRMATION', 'Booking confirmation')]
+    STATUSES = [
+        ('PENDING', 'Pending'),
+        ('SENT', 'Sent'),
+        ('FAILED', 'Failed'),
+        ('UNAVAILABLE', 'Not configured'),
+        ('SIMULATED', 'Simulated (not delivered)'),
+    ]
+
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='notifications')
+    channel = models.CharField(max_length=5, choices=CHANNELS)
+    kind = models.CharField(max_length=15, choices=KINDS, default='CONFIRMATION')
+    status = models.CharField(max_length=12, choices=STATUSES, default='PENDING')
+    recipient = models.CharField(max_length=254, blank=True)
+    detail = models.TextField(blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['booking', 'channel', 'kind'],
+                                    name='unique_notification_per_booking'),
+        ]
+
+    def __str__(self):
+        return f'{self.booking.pnr} {self.channel} {self.status}'

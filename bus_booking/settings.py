@@ -162,3 +162,38 @@ if os.environ.get('DJANGO_HTTPS') == '1':  # set only when served over HTTPS
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = True
+
+# ---- Email (OTP and tickets) ----
+# ---- Email (OTP and tickets): Django 6.1 uses MAILERS. Define it only once. ----
+_email_backend = os.environ.get(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend' if DEBUG
+    else 'django.core.mail.backends.smtp.EmailBackend')
+_smtp_user = os.environ.get('EMAIL_HOST_USER', '')
+_smtp_password = os.environ.get('EMAIL_HOST_PASSWORD', '')
+
+if 'smtp' in _email_backend:
+    _smtp_options = {
+        'host': os.environ.get('EMAIL_HOST', 'smtp.gmail.com'),
+        'port': int(os.environ.get('EMAIL_PORT', '587')),
+        'use_tls': os.environ.get('EMAIL_USE_TLS', 'True') == 'True',
+        'timeout': 15,
+    }
+    if _smtp_user:
+        _smtp_options['username'] = _smtp_user
+        _smtp_options['password'] = _smtp_password
+    MAILERS = {'default': {'BACKEND': _email_backend, 'OPTIONS': _smtp_options}}
+else:
+    MAILERS = {'default': {'BACKEND': _email_backend}}
+
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL', _smtp_user or 'YatraBus <no-reply@yatrabus.local>')
+
+# Public base address, used for links in emails, SMS and QR codes
+SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
+
+# ---- SMS (optional). Empty = not configured ----
+SMS_PROVIDER = os.environ.get('SMS_PROVIDER', '')  # '', 'console' or 'twilio'
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_FROM_NUMBER = os.environ.get('TWILIO_FROM_NUMBER', '')

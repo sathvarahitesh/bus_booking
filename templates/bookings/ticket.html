@@ -7,14 +7,14 @@
 
 {% block content %}
 <div class="container my-4">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
-    <a class="small text-decoration-none" href="{% url 'bookings:detail' booking.pnr %}">
-      <i class="bi bi-arrow-left"></i> Booking details
-    </a>
-    <button class="btn btn-primary" type="button" onclick="window.print()">
-      <i class="bi bi-printer me-1"></i>Print / Save as PDF
-    </button>
-  </div>
+     <div class="d-flex gap-2">
+      <a class="btn btn-outline-primary" href="{% url 'bookings:ticket_pdf' booking.pnr %}">
+        <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+      </a>
+      <button class="btn btn-primary" type="button" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>Print
+      </button>
+    </div>
 
   <div class="ticket">
     <div class="ticket-head">
