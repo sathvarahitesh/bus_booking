@@ -21,6 +21,18 @@ import uuid
 from django.conf import settings
 
 from .ticket import build_ticket_pdf, ticket_data
+import io
+import re
+from base64 import b64encode
+from contextlib import redirect_stdout
+from unittest import mock
+from urllib.error import HTTPError
+from urllib.parse import parse_qs
+
+from django.core import mail
+from django.core.management import call_command
+from django.test import override_settings
+from .notifications import notify_confirmed, send_confirmation
 
 class TripTestCase(TestCase):
     @classmethod
@@ -41,9 +53,23 @@ class TripTestCase(TestCase):
 
     def setUp(self):
         cache.clear()
+        patch = override_settings(SMS_PROVIDER='')  # tests must never send a real SMS
+        patch.enable()
+        self.addCleanup(patch.disable)
 
     def make_booking(self, seats, schedule=None, user=None, status='CONFIRMED',
-                     payment='PAID', phone='9876543210'):
+                     payment='PAID', phone='9876543210', email='buyer@example.com'):
+        booking = Booking.objects.create(
+            user=user, schedule=schedule or self.schedule, boarding_point=self.boarding,
+            dropping_point=self.dropping, contact_phone=phone, contact_email=email,
+            total_amount=self.bus.seat_price * len(seats),
+            booking_status=status, payment_status=payment)
+        for seat in seats:
+            Passenger.objects.create(booking=booking, seat=seat, name='Test Person', age=30, gender='F')
+        return booking
+
+    def make_booking_with_details(self, seats, schedule=None, user=None, status='CONFIRMED',
+                                  payment='PAID', phone='9876543210', email='buyer@example.com'):
         booking = Booking.objects.create(
             user=user, schedule=schedule or self.schedule, boarding_point=self.boarding,
             dropping_point=self.dropping, contact_phone=phone,
@@ -433,3 +459,245 @@ class PDFTicketTests(TripTestCase):
     def test_unknown_ticket_id_is_404(self):
         response = Client().get(reverse('bookings:verify', args=[uuid.uuid4()]))
         self.assertEqual(response.status_code, 404)
+
+
+
+class FakeResponse:
+    def __init__(self, body):
+        self.body = body
+
+    def read(self):
+        return self.body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+def parts_of(message):
+    return {part.get_content_type(): part for part in message.message().walk()}
+
+
+def text_of(message):
+    return parts_of(message)['text/plain'].get_payload(decode=True).decode()
+
+
+class NotificationTests(TripTestCase):
+    def booking(self, **kwargs):
+        return self.make_booking([self.seats[0]], **kwargs)
+
+    def test_email_has_text_html_pdf_and_link(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ['buyer@example.com'])
+        self.assertIn(booking.pnr, message.subject)
+        parts = parts_of(message)
+        self.assertIn('text/html', parts)
+        self.assertTrue(parts['application/pdf'].get_payload(decode=True).startswith(b'%PDF'))
+        text = text_of(message)
+        self.assertIn(booking.pnr, text)
+        self.assertIn(f'Seats: {self.seats[0].seat_number}', text)
+        self.assertRegex(text, r'/bookings/access/\S+/pdf/')
+        self.assertIn('&#8377;500.00', parts['text/html'].get_payload(decode=True).decode())
+
+    def test_secure_link_in_email_downloads_the_pdf(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        link = re.search(r'(\S*/bookings/access/\S+/pdf/)', text_of(mail.outbox[0])).group(1)
+        response = Client().get(link.replace(settings.SITE_URL, ''))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+
+    def test_retry_does_not_send_twice(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        send_confirmation(booking)
+        notify_confirmed(booking)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(Notification.objects.count(), 2)
+        self.assertEqual(set(Notification.objects.values_list('attempts', flat=True)), {1})
+
+    def test_email_failure_is_recorded_and_booking_unchanged(self):
+        booking = self.booking()
+        with self.assertLogs('bookings.notifications', level='ERROR'):
+            with mock.patch('bookings.notifications.EmailMultiAlternatives.send',
+                            side_effect=OSError('smtp down')):
+                send_confirmation(booking)
+        note = booking.notifications.get(channel='EMAIL')
+        self.assertEqual(note.status, 'FAILED')
+        self.assertIn('smtp down', note.detail)
+        booking.refresh_from_db()
+        self.assertEqual((booking.booking_status, booking.payment_status), ('CONFIRMED', 'PAID'))
+        self.assertEqual(len(mail.outbox), 0)
+        send_confirmation(booking, mode='retry')  # only the failed channel is tried again
+        self.assertEqual(len(mail.outbox), 1)
+        note.refresh_from_db()
+        self.assertIn(note.status, ('SENT', 'SIMULATED'))
+        self.assertEqual(note.attempts, 2)
+        self.assertEqual(booking.notifications.get(channel='SMS').attempts, 1)
+
+    def test_retry_stops_after_three_tries(self):
+        booking = self.booking()
+        with self.assertLogs('bookings.notifications', level='ERROR'):
+            with mock.patch('bookings.notifications.EmailMultiAlternatives.send',
+                            side_effect=OSError('down')):
+                for mode in ('auto', 'retry', 'retry', 'retry', 'retry'):
+                    send_confirmation(booking, mode=mode)
+        self.assertEqual(booking.notifications.get(channel='EMAIL').attempts, 3)
+
+    def test_real_backend_is_reported_as_sent(self):
+        booking = self.booking()
+        with mock.patch('bookings.notifications.email_backend_is_simulated', return_value=False):
+            send_confirmation(booking)
+        self.assertEqual(booking.notifications.get(channel='EMAIL').status, 'SENT')
+
+    def test_development_backend_is_reported_as_simulated(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        self.assertEqual(booking.notifications.get(channel='EMAIL').status, 'SIMULATED')
+
+    def test_sms_unavailable_without_provider(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        note = booking.notifications.get(channel='SMS')
+        self.assertEqual(note.status, 'UNAVAILABLE')
+        self.assertEqual(note.status_text, 'Not configured')
+        self.assertEqual(len(mail.outbox), 1)  # the email still went out
+
+    @override_settings(SMS_PROVIDER='console')
+    def test_sms_console_is_simulated_not_sent(self):
+        booking = self.booking()
+        out = io.StringIO()
+        with redirect_stdout(out):
+            send_confirmation(booking)
+        self.assertEqual(booking.notifications.get(channel='SMS').status, 'SIMULATED')
+        self.assertIn(booking.pnr, out.getvalue())
+
+    @override_settings(SMS_PROVIDER='twilio', TWILIO_ACCOUNT_SID='ACtest',
+                       TWILIO_AUTH_TOKEN='secret-token', TWILIO_FROM_NUMBER='+15550001111')
+    def test_twilio_request_and_success(self):
+        booking = self.booking()
+        reply = FakeResponse(b'{"status": "queued", "sid": "SM1"}')
+        with mock.patch('bookings.sms.urlopen', return_value=reply) as urlopen:
+            send_confirmation(booking)
+        request = urlopen.call_args[0][0]
+        self.assertTrue(request.full_url.endswith('/2010-04-01/Accounts/ACtest/Messages.json'))
+        form = parse_qs(request.data.decode())
+        self.assertEqual(form['To'], ['+919876543210'])
+        self.assertEqual(form['From'], ['+15550001111'])
+        self.assertIn(booking.pnr, form['Body'][0])
+        self.assertEqual(request.get_header('Authorization'),
+                         'Basic ' + b64encode(b'ACtest:secret-token').decode())
+        note = booking.notifications.get(channel='SMS')
+        self.assertEqual(note.status, 'SENT')
+        self.assertNotIn('secret-token', note.detail)
+
+    @override_settings(SMS_PROVIDER='twilio', TWILIO_ACCOUNT_SID='ACtest',
+                       TWILIO_AUTH_TOKEN='secret-token', TWILIO_FROM_NUMBER='+15550001111')
+    def test_twilio_error_is_recorded(self):
+        booking = self.booking()
+        error = HTTPError('http://x', 401, 'Unauthorized', {}, io.BytesIO(b'{"message": "Authenticate"}'))
+        with mock.patch('bookings.sms.urlopen', side_effect=error):
+            send_confirmation(booking)
+        note = booking.notifications.get(channel='SMS')
+        self.assertEqual(note.status, 'FAILED')
+        self.assertIn('401', note.detail)
+        self.assertNotIn('secret-token', note.detail)
+
+    @override_settings(SMS_PROVIDER='twilio', TWILIO_ACCOUNT_SID='ACtest',
+                       TWILIO_AUTH_TOKEN='x', TWILIO_FROM_NUMBER='+15550001111')
+    def test_twilio_network_error_is_recorded(self):
+        booking = self.booking()
+        with mock.patch('bookings.sms.urlopen', side_effect=TimeoutError('timed out')):
+            send_confirmation(booking)
+        self.assertEqual(booking.notifications.get(channel='SMS').status, 'FAILED')
+
+    @override_settings(SMS_PROVIDER='twilio', TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='',
+                       TWILIO_FROM_NUMBER='')
+    def test_twilio_without_credentials_is_unavailable(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        self.assertEqual(booking.notifications.get(channel='SMS').status, 'UNAVAILABLE')
+
+    def test_pending_booking_sends_nothing(self):
+        booking = self.booking(status='PENDING', payment='PENDING')
+        self.assertEqual(send_confirmation(booking), [])
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_missing_email_is_unavailable(self):
+        booking = self.booking(email='')
+        send_confirmation(booking)
+        self.assertEqual(booking.notifications.get(channel='EMAIL').status, 'UNAVAILABLE')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_force_resend_sends_again_with_a_new_link(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        send_confirmation(booking, mode='force')
+        self.assertEqual(len(mail.outbox), 2)
+        links = [re.search(r'(\S*/bookings/access/\S+/pdf/)', text_of(m)).group(1) for m in mail.outbox]
+        self.assertNotEqual(links[0], links[1])
+        old = Client().get(links[0].replace(settings.SITE_URL, ''))
+        self.assertRedirects(old, reverse('bookings:find'))
+
+    def test_notify_confirmed_never_raises(self):
+        booking = self.booking()
+        with self.assertLogs('bookings.notifications', level='ERROR'):
+            with mock.patch('bookings.notifications.send_confirmation', side_effect=RuntimeError('boom')):
+                notify_confirmed(booking)
+
+    def test_preparation_error_marks_failed(self):
+        booking = self.booking()
+        with self.assertLogs('bookings.notifications', level='ERROR'):
+            with mock.patch('bookings.notifications.ticket_data', side_effect=KeyError('x')):
+                send_confirmation(booking)
+        self.assertEqual(set(booking.notifications.values_list('status', flat=True)), {'FAILED'})
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_payment_sends_confirmation_once(self):
+        booking = self.booking(status='PENDING', payment='PENDING')
+        self.allow(booking)
+        url = reverse('payments:pay', args=[booking.pnr])
+        data = {'method': 'UPI', 'upi_id': 'demo@upi'}
+        self.client.post(url, data)
+        self.client.post(url, data)  # a second submit finds the booking already confirmed
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(booking.notifications.count(), 2)
+
+    def test_status_is_shown_on_ticket_and_booking_pages(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        self.allow(booking)
+        for name in ('bookings:ticket', 'bookings:detail'):
+            response = self.client.get(reverse(name, args=[booking.pnr]))
+            self.assertContains(response, 'Confirmation messages')
+            self.assertContains(response, 'Not configured')
+
+    def test_dashboard_resend_by_staff(self):
+        staff = User.objects.create_user('boss@example.com', 'boss@example.com',
+                                         'Str0ng#Pass99', is_staff=True)
+        booking = self.booking()
+        self.client.force_login(staff)
+        response = self.client.post(reverse('dashboard:resend_notifications', args=[booking.pk]))
+        self.assertRedirects(response, reverse('dashboard:booking', args=[booking.pk]))
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_dashboard_resend_blocked_for_non_staff(self):
+        booking = self.booking()
+        response = self.client.post(reverse('dashboard:resend_notifications', args=[booking.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_command_retries_failed_messages(self):
+        booking = self.booking()
+        with self.assertLogs('bookings.notifications', level='ERROR'):
+            with mock.patch('bookings.notifications.EmailMultiAlternatives.send',
+                            side_effect=OSError('down')):
+                send_confirmation(booking)
+        call_command('send_notifications', stdout=io.StringIO())
+        self.assertEqual(len(mail.outbox), 1)

@@ -144,3 +144,14 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'{self.booking.pnr} {self.channel} {self.status}'
+
+    @property
+    def status_text(self):
+        if self.status == 'SENT':
+            return 'Sent to mail server' if self.channel == 'EMAIL' else 'Sent to SMS provider'
+        return self.get_status_display()
+
+    @property
+    def badge_class(self):
+        return {'SENT': 'success', 'FAILED': 'danger', 'SIMULATED': 'warning',
+                'PENDING': 'info'}.get(self.status, 'secondary')

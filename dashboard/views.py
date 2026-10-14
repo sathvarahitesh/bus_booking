@@ -25,6 +25,7 @@ from payments.models import Payment
 from .config import ENTITIES, NAV
 from .decorators import staff_required
 from .forms import StaffLoginForm, make_form_class
+from bookings.notifications import send_confirmation
 
 PAGE_SIZE = 15
 
@@ -365,3 +366,14 @@ def bulk_schedules(request):
         'last_date': BusSchedule.objects.aggregate(last=Max('travel_date'))['last'],
         'extend_choices': EXTEND_CHOICES,
     })
+
+@staff_required
+@require_POST
+def resend_notifications(request, pk):
+    booking = get_object_or_404(Booking, pk=pk)
+    if booking.booking_status != 'CONFIRMED':
+        messages.error(request, 'Only confirmed bookings can be notified.')
+    else:
+        send_confirmation(booking, mode='force')
+        messages.success(request, 'Resend finished. Check the notification statuses below.')
+    return redirect('dashboard:booking', pk=pk)

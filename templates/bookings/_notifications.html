@@ -1,0 +1,17 @@
+{% if booking.notifications.all %}
+<div class="info-card mt-3 no-print">
+  <h6 class="mb-2"><i class="bi bi-bell me-1"></i>Confirmation messages</h6>
+  {% for n in booking.notifications.all %}
+  <div class="d-flex justify-content-between align-items-center small py-1 border-bottom">
+    <span>
+      <i class="bi {% if n.channel == 'EMAIL' %}bi-envelope{% else %}bi-chat-dots{% endif %} me-1"></i>
+      {{ n.get_channel_display }}{% if n.recipient %} to {{ n.recipient }}{% endif %}
+    </span>
+    <span class="badge text-bg-{{ n.badge_class }}">{{ n.status_text }}</span>
+  </div>
+  {% endfor %}
+  <div class="small text-muted mt-2">
+    Your e-ticket is always available on this page, even if a message could not be sent.
+  </div>
+</div>
+{% endif %}

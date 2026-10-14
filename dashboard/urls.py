@@ -17,4 +17,5 @@ urlpatterns = [
     path('manage/<slug:entity>/<int:pk>/edit/', views.entity_form, name='edit'),
     path('manage/<slug:entity>/<int:pk>/delete/', views.entity_delete, name='delete'),
     path('schedules/bulk/', views.bulk_schedules, name='bulk_schedules'),
+    path('bookings/<int:pk>/notify/', views.resend_notifications, name='resend_notifications'),
 ]

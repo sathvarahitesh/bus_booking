@@ -10,6 +10,7 @@ from bookings.utils import HOLD_MINUTES, can_view, get_customer, release_expired
 
 from .forms import PaymentForm
 from .models import Payment
+from bookings.notifications import notify_confirmed
 
 METHOD_ICONS = {
     'UPI': 'bi-phone',
@@ -53,6 +54,7 @@ def pay(request, pnr):
         if form.is_valid():
             confirmed, _payment = confirm_booking(booking, form.cleaned_data['method'])
             if confirmed:
+                notify_confirmed(booking)
                 messages.success(request, 'Booking confirmed! Your e-ticket is ready.')
             elif booking.booking_status == 'CONFIRMED':
                 messages.info(request, 'This booking is already confirmed.')

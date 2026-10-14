@@ -1,0 +1,30 @@
+{% autoescape off %}Hello {{ customer_name }},
+
+Your booking is confirmed.
+
+PNR: {{ pnr }}
+Route: {{ source }} to {{ destination }}
+Travel date: {{ travel_date }}
+Departure: {{ departure_time }}   Arrival: {{ arrival_time }} ({{ arrival_date }})
+Bus: {{ operator }}, {{ bus_number }} ({{ bus_type }})
+Boarding: {{ boarding_name }} at {{ boarding_time }}
+Dropping: {{ dropping_name }} at {{ dropping_time }}
+Seats: {{ seats }}
+Total fare: Rs. {{ total }}
+Payment: {{ payment_method }} ({{ payment_status }})
+{{ payment_note }}
+
+Download your e-ticket (PDF):
+{{ ticket_link }}
+
+View or manage your booking:
+{{ booking_link }}
+
+The PDF e-ticket is also attached to this email. Show the QR code or your PNR when you board.
+
+Keep the links private: anyone who has them can open your ticket. They work until {{ link_expires }}.
+You can also find your booking any time with your PNR and mobile number.
+
+This is a demo academic project. Payments are simulated and this is not a real ticket.
+{{ brand }}
+{% endautoescape %}

@@ -126,3 +126,6 @@ def booking_for_token(token):
 
 def access_url(token):
     return f"{settings.SITE_URL}{reverse('bookings:access', args=[token])}"
+
+def pdf_access_url(token):
+    return f"{settings.SITE_URL}{reverse('bookings:access_pdf', args=[token])}"

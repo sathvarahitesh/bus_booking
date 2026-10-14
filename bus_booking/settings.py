@@ -197,3 +197,5 @@ SMS_PROVIDER = os.environ.get('SMS_PROVIDER', '')  # '', 'console' or 'twilio'
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_FROM_NUMBER = os.environ.get('TWILIO_FROM_NUMBER', '')
+SMS_COUNTRY_CODE = os.environ.get('SMS_COUNTRY_CODE', '+91')
+TWILIO_API_BASE = os.environ.get('TWILIO_API_BASE', 'https://api.twilio.com')

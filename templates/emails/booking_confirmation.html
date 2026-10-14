@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fb;padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;">
+        <tr><td style="background:#0a3d91;color:#ffffff;padding:18px 24px;">
+          <div style="font-size:20px;font-weight:bold;">{{ brand }}</div>
+          <div style="font-size:12px;color:#dce8ff;">Booking confirmation</div>
+        </td></tr>
+        <tr><td style="padding:24px;color:#212529;font-size:15px;line-height:1.5;">
+          <p style="margin:0 0 12px;">Hello {{ customer_name }},</p>
+          <p style="margin:0 0 16px;">Your booking is <strong style="color:#198754;">confirmed</strong>.</p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eaf2ff;border-radius:8px;margin-bottom:16px;">
+            <tr><td style="padding:14px 16px;">
+              <div style="font-size:12px;color:#6c7a8f;">PNR</div>
+              <div style="font-size:24px;font-weight:bold;letter-spacing:2px;color:#0a3d91;">{{ pnr }}</div>
+            </td></tr>
+          </table>
+
+          <table role="presentation" width="100%" cellpadding="6" cellspacing="0" style="font-size:14px;">
+            <tr><td style="color:#6c7a8f;width:34%;">Route</td><td><strong>{{ source }} to {{ destination }}</strong></td></tr>
+            <tr><td style="color:#6c7a8f;">Travel date</td><td>{{ travel_date }}</td></tr>
+            <tr><td style="color:#6c7a8f;">Departure</td><td>{{ departure_time }}</td></tr>
+            <tr><td style="color:#6c7a8f;">Arrival</td><td>{{ arrival_time }} ({{ arrival_date }})</td></tr>
+            <tr><td style="color:#6c7a8f;">Bus</td><td>{{ operator }}, {{ bus_number }}<br><span style="color:#6c7a8f;font-size:12px;">{{ bus_type }}</span></td></tr>
+            <tr><td style="color:#6c7a8f;">Boarding</td><td>{{ boarding_name }} at {{ boarding_time }}</td></tr>
+            <tr><td style="color:#6c7a8f;">Dropping</td><td>{{ dropping_name }} at {{ dropping_time }}</td></tr>
+            <tr><td style="color:#6c7a8f;">Seats</td><td><strong>{{ seats }}</strong></td></tr>
+            <tr><td style="color:#6c7a8f;">Total fare</td><td><strong>&#8377;{{ total }}</strong></td></tr>
+            <tr><td style="color:#6c7a8f;">Payment</td><td>{{ payment_method }} ({{ payment_status }})<br><span style="color:#b8860b;font-size:12px;">{{ payment_note }}</span></td></tr>
+          </table>
+
+          <p style="text-align:center;margin:24px 0 8px;">
+            <a href="{{ ticket_link }}" style="background:#0d6efd;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:6px;font-weight:bold;display:inline-block;">Download e-ticket (PDF)</a>
+          </p>
+          <p style="text-align:center;margin:0 0 16px;font-size:13px;">
+            <a href="{{ booking_link }}" style="color:#0d6efd;">View or manage your booking</a>
+          </p>
+
+          <p style="font-size:13px;color:#33415c;">The PDF e-ticket is attached to this email. Show the QR code or your PNR when you board.</p>
+          <p style="font-size:12px;color:#6c7a8f;">Keep these links private: anyone who has them can open your ticket. They work until {{ link_expires }}. You can also find your booking any time with your PNR and mobile number.</p>
+          <p style="font-size:12px;color:#6c7a8f;margin-bottom:0;">This is a demo academic project. Payments are simulated and this is not a real ticket.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
