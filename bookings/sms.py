@@ -9,6 +9,11 @@ from django.conf import settings
 TIMEOUT_SECONDS = 10
 
 
+def indian_mobile(phone):
+    """The 10-digit national number (Fast2SMS wants it without +91)."""
+    return ''.join(ch for ch in phone if ch.isdigit())[-10:]
+
+
 def provider_name():
     return (getattr(settings, 'SMS_PROVIDER', '') or '').strip().lower()
 
@@ -35,6 +40,8 @@ def send_sms(phone, text):
         return 'SIMULATED', 'Printed in the server console. Not delivered to a phone.'
     if provider == 'twilio':
         return _send_twilio(phone, text)
+    if provider == 'fast2sms':
+        return _send_fast2sms(phone, text)
     return 'UNAVAILABLE', f'Unknown SMS provider "{provider}".'
 
 
@@ -69,3 +76,48 @@ def _send_twilio(phone, text):
     except ValueError:
         status = 'queued'
     return 'SENT', f'Accepted by Twilio (status: {status}). Delivery to the handset is not confirmed here.'
+
+
+def _flatten(value):
+    if isinstance(value, (list, tuple)):
+        return ', '.join(str(item) for item in value)
+    return str(value)
+
+
+def _fast2sms_message(error):
+    try:
+        return _flatten(json.loads(error.read().decode()).get('message', error.reason))
+    except Exception:
+        return str(error.reason)
+
+
+def _send_fast2sms(phone, text):
+    key = getattr(settings, 'FAST2SMS_API_KEY', '')
+    if not key:
+        return 'UNAVAILABLE', 'Fast2SMS is selected but FAST2SMS_API_KEY is missing.'
+
+    payload = json.dumps({
+        'route': getattr(settings, 'FAST2SMS_ROUTE', 'q'),
+        'message': text,
+        'numbers': indian_mobile(phone),
+    }).encode()
+    url = f"{settings.FAST2SMS_API_BASE.rstrip('/')}/dev/bulkV2"
+    request = Request(url, data=payload, method='POST')
+    request.add_header('Authorization', key)
+    request.add_header('Content-Type', 'application/json')
+    request.add_header('User-Agent', 'YatraBus/1.0')
+    try:
+        with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            raw = response.read().decode() or '{}'
+    except HTTPError as error:
+        return 'FAILED', f'Fast2SMS rejected the request ({error.code}): {_fast2sms_message(error)}'
+    except (URLError, TimeoutError, OSError) as error:
+        return 'FAILED', f'Could not reach Fast2SMS: {error}'
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return 'FAILED', 'Fast2SMS sent a reply that could not be read.'
+    if data.get('return') is True:
+        return 'SENT', (f"Accepted by Fast2SMS (request {data.get('request_id', 'unknown')}). "
+                        'Delivery to the handset is not confirmed here.')
+    return 'FAILED', f"Fast2SMS error: {_flatten(data.get('message', 'unknown error'))}"

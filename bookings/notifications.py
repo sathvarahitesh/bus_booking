@@ -34,9 +34,12 @@ def email_backend_is_simulated():
 
 
 def sms_text(context):
-    return (f"{context['brand']}: Booking confirmed. PNR {context['pnr']}. "
+    text = (f"{context['brand']}: Booking confirmed. PNR {context['pnr']}. "
             f"{context['source']} to {context['destination']}, {context['travel_date']} "
-            f"{context['departure_time']}. Seats {context['seats']}. Ticket: {context['ticket_link']}")
+            f"{context['departure_time']}. Seats {context['seats']}.")
+    if getattr(settings, 'SMS_INCLUDE_LINK', True):
+        text += f" Ticket: {context['ticket_link']}"
+    return text
 
 
 def _context(booking, token):

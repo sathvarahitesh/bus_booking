@@ -15,7 +15,20 @@ import os
 from django.contrib.messages import constants as messages
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+def _load_env_file():
+    """Read KEY=VALUE lines from .env in the project folder (git-ignored). Real environment variables win."""
+    env_file = BASE_DIR / '.env'
+    if not env_file.exists():
+        return
+    for line in env_file.read_text(encoding='utf-8-sig').splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, _, value = line.partition('=')
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
+
+_load_env_file()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
@@ -171,12 +184,14 @@ _email_backend = os.environ.get(
     else 'django.core.mail.backends.smtp.EmailBackend')
 _smtp_user = os.environ.get('EMAIL_HOST_USER', '')
 _smtp_password = os.environ.get('EMAIL_HOST_PASSWORD', '')
+_use_ssl = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
 
 if 'smtp' in _email_backend:
     _smtp_options = {
         'host': os.environ.get('EMAIL_HOST', 'smtp.gmail.com'),
-        'port': int(os.environ.get('EMAIL_PORT', '587')),
-        'use_tls': os.environ.get('EMAIL_USE_TLS', 'True') == 'True',
+        'port': int(os.environ.get('EMAIL_PORT', '465' if _use_ssl else '587')),
+        'use_tls': (not _use_ssl) and os.environ.get('EMAIL_USE_TLS', 'True') == 'True',
+        'use_ssl': _use_ssl,
         'timeout': 15,
     }
     if _smtp_user:
@@ -189,6 +204,8 @@ else:
 DEFAULT_FROM_EMAIL = os.environ.get(
     'DEFAULT_FROM_EMAIL', _smtp_user or 'YatraBus <no-reply@yatrabus.local>')
 
+
+
 # Public base address, used for links in emails, SMS and QR codes
 SITE_URL = os.environ.get('SITE_URL', 'http://127.0.0.1:8000').rstrip('/')
 
@@ -199,3 +216,8 @@ TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_FROM_NUMBER = os.environ.get('TWILIO_FROM_NUMBER', '')
 SMS_COUNTRY_CODE = os.environ.get('SMS_COUNTRY_CODE', '+91')
 TWILIO_API_BASE = os.environ.get('TWILIO_API_BASE', 'https://api.twilio.com')
+
+FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', '')
+FAST2SMS_ROUTE = os.environ.get('FAST2SMS_ROUTE', 'q')
+FAST2SMS_API_BASE = os.environ.get('FAST2SMS_API_BASE', 'https://www.fast2sms.com')
+SMS_INCLUDE_LINK = os.environ.get('SMS_INCLUDE_LINK', '1') == '1'

@@ -6,6 +6,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+
 from buses.models import BoardingPoint, Bus, BusOperator, BusSchedule, DroppingPoint, Route
 
 from payments.models import Payment
@@ -32,7 +33,8 @@ from urllib.parse import parse_qs
 from django.core import mail
 from django.core.management import call_command
 from django.test import override_settings
-from .notifications import notify_confirmed, send_confirmation
+
+from .notifications import notify_confirmed, send_confirmation, sms_text
 
 class TripTestCase(TestCase):
     @classmethod
@@ -701,3 +703,61 @@ class NotificationTests(TripTestCase):
                 send_confirmation(booking)
         call_command('send_notifications', stdout=io.StringIO())
         self.assertEqual(len(mail.outbox), 1)
+
+
+class Fast2SMSTests(TripTestCase):
+    def booking(self):
+        return self.make_booking([self.seats[0]])
+
+    @override_settings(SMS_PROVIDER='fast2sms', FAST2SMS_API_KEY='key-abc123')
+    def test_request_and_success(self):
+        booking = self.booking()
+        reply = FakeResponse(
+            b'{"return": true, "request_id": "req123", "message": ["Message sent successfully"]}')
+        with mock.patch('bookings.sms.urlopen', return_value=reply) as urlopen:
+            send_confirmation(booking)
+        request = urlopen.call_args[0][0]
+        self.assertTrue(request.full_url.endswith('/dev/bulkV2'))
+        self.assertEqual(request.get_header('Authorization'), 'key-abc123')
+        body = json.loads(request.data.decode())
+        self.assertEqual(body['route'], 'q')
+        self.assertEqual(body['numbers'], '9876543210')
+        self.assertIn(booking.pnr, body['message'])
+        note = booking.notifications.get(channel='SMS')
+        self.assertEqual(note.status, 'SENT')
+        self.assertIn('req123', note.detail)
+        self.assertNotIn('key-abc123', note.detail)
+
+    @override_settings(SMS_PROVIDER='fast2sms', FAST2SMS_API_KEY='key-abc123')
+    def test_api_error_reply_is_recorded(self):
+        booking = self.booking()
+        reply = FakeResponse(b'{"return": false, "status_code": 412, "message": "Invalid key"}')
+        with mock.patch('bookings.sms.urlopen', return_value=reply):
+            send_confirmation(booking)
+        note = booking.notifications.get(channel='SMS')
+        self.assertEqual(note.status, 'FAILED')
+        self.assertIn('Invalid key', note.detail)
+
+    @override_settings(SMS_PROVIDER='fast2sms', FAST2SMS_API_KEY='key-abc123')
+    def test_http_error_is_recorded(self):
+        booking = self.booking()
+        error = HTTPError('http://x', 401, 'Unauthorized', {}, io.BytesIO(b'{"message": "Unauthorized"}'))
+        with mock.patch('bookings.sms.urlopen', side_effect=error):
+            send_confirmation(booking)
+        note = booking.notifications.get(channel='SMS')
+        self.assertEqual(note.status, 'FAILED')
+        self.assertIn('401', note.detail)
+
+    @override_settings(SMS_PROVIDER='fast2sms', FAST2SMS_API_KEY='')
+    def test_missing_key_is_unavailable(self):
+        booking = self.booking()
+        send_confirmation(booking)
+        self.assertEqual(booking.notifications.get(channel='SMS').status, 'UNAVAILABLE')
+
+    def test_link_can_be_left_out_of_the_text(self):
+        context = {'brand': 'YatraBus', 'pnr': 'PNR1', 'source': 'A', 'destination': 'B',
+                   'travel_date': 'Mon', 'departure_time': '09:00 AM', 'seats': '1',
+                   'ticket_link': 'http://x/y/'}
+        self.assertIn('http://x/y/', sms_text(context))
+        with override_settings(SMS_INCLUDE_LINK=False):
+            self.assertNotIn('http', sms_text(context))
