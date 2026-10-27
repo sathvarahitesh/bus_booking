@@ -5,6 +5,7 @@ from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import RegexValidator
 from django.utils import timezone
+from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm
 
 from .models import User
 
@@ -138,6 +139,18 @@ class OTPForm(BootstrapMixin, forms.Form):
         if not code.isdigit():
             raise forms.ValidationError('Enter the 6 digits from the email.')
         return code
+
+class ForgotPasswordForm(BootstrapMixin, forms.Form):
+    email = forms.EmailField(
+        max_length=150,
+        widget=forms.EmailInput(attrs={'autocomplete': 'email', 'autofocus': True}))
+
+    def clean_email(self):
+        return self.cleaned_data['email'].strip().lower()
+
+
+class NewPasswordForm(BootstrapMixin, SetPasswordForm):
+    """Step 3 of a password reset: choose the new password."""
 
 
 class ProfileForm(BootstrapMixin, forms.ModelForm):

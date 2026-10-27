@@ -25,7 +25,8 @@ class User(AbstractUser):
 
 class EmailOTP(models.Model):
     """One emailed code. Only a keyed hash of the code is stored."""
-    PURPOSES = [('REGISTER', 'Registration'), ('LOGIN', 'Login')]
+    PURPOSES = [('REGISTER', 'Registration'), ('LOGIN', 'Login'), ('RESET', 'Password reset')]
+    
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otps')
     purpose = models.CharField(max_length=10, choices=PURPOSES)

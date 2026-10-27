@@ -24,6 +24,7 @@ MAX_SENDS_PER_HOUR = 5
 ACTION_TEXT = {
     'REGISTER': 'complete your registration',
     'LOGIN': 'log in to your account',
+    'RESET': 'reset your password',
 }
 
 
@@ -118,3 +119,18 @@ def verify_code(user, purpose, code):
         otp.used_at = now
         otp.save(update_fields=['attempts', 'used_at'])
     return True, ''
+
+
+def send_password_changed_notice(user):
+    """Tell the owner that the password was changed. A failure is logged and never raised."""
+    try:
+        message = EmailMultiAlternatives(
+            subject='Your YatraBus password was changed',
+            body=render_to_string('emails/password_changed.txt', {
+                'name': user.first_name or 'there', 'site_name': 'YatraBus'}),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        message.send()
+    except Exception:
+        logger.exception('Could not send the password-changed notice to user %s', user.pk)

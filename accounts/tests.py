@@ -1,7 +1,10 @@
 import re
+import time
 from datetime import timedelta
+from django.test import Client, TestCase
 
 from django.core import mail
+from .views import RESET_OK_KEY
 from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
@@ -242,3 +245,157 @@ class LoginOTPTests(TestCase):
         response = self.login()  # even the correct password is blocked now
         self.assertRedirects(response, reverse('accounts:login'))
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_login_page_links_to_forgot_password(self):
+        response = self.client.get(reverse('accounts:login'))
+        self.assertContains(response, 'Forgot your password?')
+        self.assertContains(response, reverse('accounts:forgot_password'))
+
+class PasswordResetTests(TestCase):
+    old_password = 'Old#Passw0rd-1'
+    new_password = 'Brand#New-Pass42'
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            'riya@example.com', 'riya@example.com', self.old_password, first_name='Riya')
+
+    def start(self, email='riya@example.com', client=None):
+        return (client or self.client).post(reverse('accounts:forgot_password'), {'email': email})
+
+    def verify(self, code, client=None):
+        return (client or self.client).post(reverse('accounts:reset_verify'), {'code': code})
+
+    def set_password(self, password=None, confirm=None, client=None):
+        password = password or self.new_password
+        return (client or self.client).post(reverse('accounts:reset_password'), {
+            'new_password1': password, 'new_password2': confirm or password})
+
+    def wrong_code(self):
+        code = code_in_last_mail()
+        return '000000' if code != '000000' else '111111'
+
+    def test_forgot_page_opens_for_visitors(self):
+        response = self.client.get(reverse('accounts:forgot_password'))
+        self.assertContains(response, 'Forgot your password?')
+
+    def test_full_reset_flow(self):
+        self.assertRedirects(self.start(), reverse('accounts:reset_verify'))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['riya@example.com'])
+        self.assertIn('reset your password', mail.outbox[0].body)
+        self.assertContains(self.client.get(reverse('accounts:reset_verify')), 'Check your email')
+        self.assertRedirects(self.verify(code_in_last_mail()), reverse('accounts:reset_password'))
+        self.assertContains(self.client.get(reverse('accounts:reset_password')), 'Choose a new password')
+        self.assertRedirects(self.set_password(), reverse('accounts:login'))
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.new_password))
+        self.assertFalse(self.user.check_password(self.old_password))
+        self.assertEqual(len(mail.outbox), 2)  # the "password was changed" notice
+        self.assertIn('password was changed', mail.outbox[1].subject)
+        self.assertEqual(mail.outbox[1].to, ['riya@example.com'])
+        response = self.client.post(reverse('accounts:login'), {
+            'email': 'riya@example.com', 'password': self.new_password})
+        self.assertRedirects(response, reverse('accounts:verify'))
+
+    def test_unknown_email_looks_the_same_and_sends_nothing(self):
+        self.assertRedirects(self.start('nobody@example.com'), reverse('accounts:reset_verify'))
+        self.assertEqual(len(mail.outbox), 0)
+        response = self.verify('123456')
+        self.assertContains(response, 'Incorrect code')
+        self.assertRedirects(self.client.get(reverse('accounts:reset_password')),
+                             reverse('accounts:forgot_password'))
+
+    def test_wrong_code_does_not_allow_a_reset(self):
+        self.start()
+        response = self.verify(self.wrong_code())
+        self.assertContains(response, 'Incorrect code')
+        self.assertRedirects(self.client.get(reverse('accounts:reset_password')),
+                             reverse('accounts:forgot_password'))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_password))
+
+    def test_code_locks_after_too_many_wrong_attempts(self):
+        self.start()
+        code, wrong = code_in_last_mail(), self.wrong_code()
+        for _ in range(MAX_ATTEMPTS):
+            self.verify(wrong)
+        self.assertContains(self.verify(code), 'Too many wrong attempts')
+
+    def test_password_page_needs_a_verified_code(self):
+        response = self.client.get(reverse('accounts:reset_password'))
+        self.assertRedirects(response, reverse('accounts:forgot_password'))
+        self.assertRedirects(self.set_password(), reverse('accounts:forgot_password'))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_password))
+
+    def test_verified_step_expires(self):
+        self.start()
+        self.verify(code_in_last_mail())
+        session = self.client.session
+        session[RESET_OK_KEY]['at'] = time.time() - 11 * 60
+        session.save()
+        self.assertRedirects(self.set_password(), reverse('accounts:forgot_password'))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_password))
+
+    def test_weak_or_mismatched_password_is_rejected(self):
+        self.start()
+        self.verify(code_in_last_mail())
+        self.assertEqual(self.set_password('password').status_code, 200)
+        self.assertEqual(self.set_password(self.new_password, 'Different#Pass1').status_code, 200)
+        self.assertEqual(self.set_password('12345678').status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_password))
+        self.assertRedirects(self.set_password(), reverse('accounts:login'))
+
+    def test_admin_accounts_cannot_reset_here(self):
+        User.objects.create_user('boss@example.com', 'boss@example.com', self.old_password, is_staff=True)
+        self.start('boss@example.com')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_inactive_or_unverified_accounts_get_no_code(self):
+        User.objects.create_user('off@example.com', 'off@example.com', self.old_password, is_active=False)
+        User.objects.create_user('new@example.com', 'new@example.com', self.old_password,
+                                 is_active=False, email_verified=False)
+        self.start('off@example.com')
+        self.start('new@example.com')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_resend_respects_the_cooldown(self):
+        self.start()
+        self.client.post(reverse('accounts:reset_verify'), {'action': 'resend'})
+        self.assertEqual(len(mail.outbox), 1)  # blocked by the 60 second cooldown
+        EmailOTP.objects.update(created_at=timezone.now() - timedelta(minutes=2))
+        self.client.post(reverse('accounts:reset_verify'), {'action': 'resend'})
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_requests_for_one_email_are_limited(self):
+        for _ in range(5):
+            self.assertRedirects(self.start(), reverse('accounts:reset_verify'))
+        self.assertRedirects(self.start(), reverse('accounts:forgot_password'))
+        self.assertEqual(len(mail.outbox), 1)  # the cooldown allowed only the first email
+
+    def test_logged_in_users_are_sent_to_change_password(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('accounts:forgot_password'))
+        self.assertRedirects(response, reverse('accounts:password_change'),
+                             fetch_redirect_response=False)
+
+    def test_other_sessions_are_logged_out_after_a_reset(self):
+        other_device = Client()
+        other_device.force_login(self.user)
+        self.assertEqual(other_device.get(reverse('accounts:profile')).status_code, 200)
+        self.start()
+        self.verify(code_in_last_mail())
+        self.set_password()
+        response = other_device.get(reverse('accounts:profile'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('accounts:login'), response['Location'])
+
+    def test_reset_code_cannot_be_used_for_login(self):
+        self.start()
+        code = code_in_last_mail()
+        self.assertFalse(verify_code(self.user, 'LOGIN', code)[0])
+        self.assertTrue(verify_code(self.user, 'RESET', code)[0])

@@ -16,6 +16,9 @@
             <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
           {% endif %}
           {% for field in form %}{% include 'accounts/_field.html' %}{% endfor %}
+          <div class="text-end small mb-3">
+            <a href="{% url 'accounts:forgot_password' %}">Forgot your password?</a>
+          </div>
           <button type="submit" class="btn btn-primary w-100">Continue</button>
         </form>
         <p class="text-center mt-3 mb-1">

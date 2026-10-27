@@ -7,17 +7,25 @@ from django.contrib.auth.views import PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.throttle import MESSAGE as THROTTLE_MESSAGE
 from core.throttle import limit_reached, throttle_post
 
-from .forms import EmailLoginForm, OTPForm, PasswordForm, ProfileForm, RegisterForm
-from .models import User
-from .otp import cooldown_remaining, mask_email, send_otp, verify_code
+from .forms import (EmailLoginForm, ForgotPasswordForm, NewPasswordForm, OTPForm,
+                    PasswordForm, ProfileForm, RegisterForm)
+from .models import EmailOTP, User
+from .otp import (RESEND_COOLDOWN_SECONDS, cooldown_remaining, mask_email, send_otp,
+                  send_password_changed_notice, verify_code)
 
 PENDING_KEY = 'otp_pending'
 PENDING_TTL = 30 * 60  # seconds a half-finished OTP step stays valid
+
+RESET_KEY = 'reset_pending'      # step 1 done: a code was requested for this email
+RESET_OK_KEY = 'reset_verified'  # step 2 done: the code was correct
+RESET_TTL = 30 * 60
+RESET_VERIFIED_TTL = 10 * 60
 
 
 def safe_next(request, url):
@@ -143,6 +151,110 @@ def verify(request):
         'cooldown': cooldown_remaining(user, purpose),
         'back_url': reverse('accounts:register' if purpose == 'REGISTER' else 'accounts:login'),
     })
+
+
+# ---------- Forgot password: email -> 6-digit code -> new password ----------
+
+def reset_candidate(user_id):
+    """The customer account that may reset its password here, otherwise None."""
+    if not user_id:
+        return None
+    return User.objects.filter(
+        pk=user_id, is_active=True, email_verified=True, is_staff=False).first()
+
+
+@throttle_post('forgot', limit=10)
+def forgot_password(request):
+    if request.user.is_authenticated and not request.user.is_staff:
+        return redirect('accounts:password_change')  # logged-in users change it from their profile
+
+    form = ForgotPasswordForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        email = form.cleaned_data['email']
+        if limit_reached(request, 'forgot-email', limit=5, window=3600, ident=email):
+            messages.error(request, THROTTLE_MESSAGE)
+            return redirect('accounts:forgot_password')
+
+        # The same page is shown whether or not the email belongs to an account.
+        user = reset_candidate(
+            User.objects.filter(email__iexact=email).values_list('pk', flat=True).first())
+        if user:
+            send_otp(user, 'RESET')
+        request.session[RESET_KEY] = {
+            'email': email, 'user_id': user.pk if user else None, 'started': time.time()}
+        messages.info(request, 'If an account exists for that email, we sent a 6-digit code. '
+                               'It expires in 5 minutes.')
+        return redirect('accounts:reset_verify')
+
+    return render(request, 'accounts/forgot_password.html', {'form': form})
+
+
+@throttle_post('reset-otp', limit=30)
+def reset_verify(request):
+    pending = request.session.get(RESET_KEY)
+    if not pending or time.time() - pending.get('started', 0) > RESET_TTL:
+        request.session.pop(RESET_KEY, None)
+        messages.error(request, 'Your reset session expired. Please start again.')
+        return redirect('accounts:forgot_password')
+
+    user = reset_candidate(pending.get('user_id'))
+    form = OTPForm(request.POST or None)
+
+    if request.method == 'POST':
+        if request.POST.get('action') == 'resend':
+            if user:
+                ok, message = send_otp(user, 'RESET')
+                if not ok:
+                    messages.warning(request, message)
+                    return redirect('accounts:reset_verify')
+            messages.info(request, 'If an account exists for that email, a new code was sent.')
+            return redirect('accounts:reset_verify')
+        if form.is_valid():
+            if user:
+                ok, message = verify_code(user, 'RESET', form.cleaned_data['code'])
+            else:
+                ok, message = False, 'Incorrect code. Please check it or request a new one.'
+            if ok:
+                request.session.pop(RESET_KEY, None)
+                request.session[RESET_OK_KEY] = {'user_id': user.pk, 'at': time.time()}
+                return redirect('accounts:reset_password')
+            form.add_error('code', message)
+
+    if user:
+        cooldown = cooldown_remaining(user, 'RESET')
+    else:  # unknown email: show the same countdown so the page looks identical
+        cooldown = max(0, RESEND_COOLDOWN_SECONDS - int(time.time() - pending['started']))
+    return render(request, 'accounts/verify_otp.html', {
+        'form': form,
+        'email': mask_email(pending['email']),
+        'cooldown': cooldown,
+        'back_url': reverse('accounts:forgot_password'),
+    })
+
+
+@throttle_post('reset-password', limit=20)
+def reset_password(request):
+    data = request.session.get(RESET_OK_KEY)
+    if not data or time.time() - data.get('at', 0) > RESET_VERIFIED_TTL:
+        request.session.pop(RESET_OK_KEY, None)
+        messages.error(request, 'Please verify the code from your email first.')
+        return redirect('accounts:forgot_password')
+    user = reset_candidate(data.get('user_id'))
+    if user is None:
+        request.session.pop(RESET_OK_KEY, None)
+        return redirect('accounts:forgot_password')
+
+    form = NewPasswordForm(user, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        form.save()  # sets the new password; the user's other sessions stop working
+        request.session.pop(RESET_OK_KEY, None)
+        EmailOTP.objects.filter(user=user, purpose='RESET', used_at__isnull=True).update(
+            used_at=timezone.now())
+        send_password_changed_notice(user)
+        messages.success(request, 'Your password was changed. Please log in with your new password.')
+        return redirect('accounts:login')
+
+    return render(request, 'accounts/reset_password.html', {'form': form})
 
 
 @login_required
